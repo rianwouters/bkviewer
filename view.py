@@ -1,7 +1,7 @@
-from audioop import add
-from bk import fmt, read, parse, event_name
+from bk import fmt, read, parse
 from models import Address, Citation, Image, Media, Person, Family, IntNote, ExtNote, Location, Source, Event, Fact, Todo, Witness, Name, File
 from dates import create_date
+from maps import event_type_map, name_type_map, privacy_type_map, witness_type_map, sexe_type_map
 
 # Reading order is determined as follows:
 # - locations has to go before events, others
@@ -21,33 +21,40 @@ from dates import create_date
 
 dir = 'C:\\stamboom\\bk\\'
 
-msg_list = read(dir, 'messages')
-messages = {m['id']: m for m in msg_list}
-
 
 def Note(id):
     s = ''
     while id > 0:
         m = messages[id]
         s, id = s + m['text'], m['next_seq_id']
-    return IntNote(s)
+    return IntNote(s.replace('\x12\x13', '\n'))
 
 
-loc_list = read(dir, 'locations')
-locations = {l['id']: Location(l['name'], l['city'], l['township'], l['county'],
-                               l['state_or_province'], l['country'], l['latitude'], l['longitude']) for l in loc_list}
+messages = {}
+for m in read(dir, 'messages'):
+    messages[m['id']] = m
 
-source_list = read(dir, 'sources')
-sources = {s['id']: Source(s['title'], Note(
-    s['text_id']), Note(s['info_id'])) for s in source_list}
+locations = {}
+for l in read(dir, 'locations'):
+    locations[l['id']] = Location(l['name'], l['city'], l['township'], l['county'],
+                                  l['state_or_province'], l['country'], l['latitude'], l['longitude'])
 
+sources = {}
+for s in read(dir, 'sources'):
+    text = Note(s['text_id'])
+    info = Note(s['info_id'])
+    sources[s['id']] = Source(s['title'], text, info)
+
+citations = {}
 citation_list = list(read(dir, 'citations'))
-citations = {c['id']: Citation(c['descr'], Note(
-    c['text_id']), Note(c['info_id'])) for c in citation_list}
+for c in citation_list:
+    citations[c['id']] = Citation(
+        c['descr'], Note(c['text_id']), Note(c['info_id']))
 
-person_list = read(dir, 'persons')
-persons = {p['id']: Person(p['id'], p['fullname'], p['firstname'],
-                           p['surname'], p['sortingname'], p['title']) for p in person_list}
+persons = {}
+for p in read(dir, 'persons'):
+    persons[p['id']] = Person(
+        p['id'], sexe_type_map[p['sexe']], p['fullname'], p['firstname'], p['surname'], p['sortingname'], p['title'], privacy_type_map[p['privacy']])
 
 families = {}
 for r in read(dir, 'marriages'):
@@ -72,7 +79,9 @@ for e in read(dir, 'events'):
     if e['ref_id'] > 0:  # skip reuse events
         loc = locations.get(e['loc_id'])
         date = create_date(e['date1'], e['date2'], e['date_type'])
-        event = Event(event_name(e['type'], e['custom_name']), date, e['prepos'], loc)
+        name = e['custom_name']
+        event = Event(
+            name if name else event_type_map[e['type']], date, e['prepos'], loc)
         ref = refs[e['ref_type']][e['ref_id']]
         ref.events[e['seq_nr']] = event
         events[e['id']] = event
@@ -91,12 +100,14 @@ for o in read(dir, 'others'):
     if t in [[0, 0], [1, 0]]:
         r = parse(o['payload'], fmt['others']['fact'])
         date = create_date(r['date1'], r['date2'], r['date_type'])
-        other = Fact(event_name(r['type'], r['custom_name']), date, r['descr'])
+        name = r['custom_name']
+        other = Fact(
+            name if name else event_type_map[r['type']], date, r['descr'])
         ref.events[n] = other
     elif t in [[0, 1], [1, 1]]:
         r = parse(o['payload'], fmt['others']['name'])
         date = create_date(r['date1'], r['date2'], r['date_type'])
-        other = Name(r['type'], r['text'], date)
+        other = Name(name_type_map[r['type']], r['text'], date)
         ref.names[n] = other
     elif t in [[0, 2], [1, 2], [2, 0], [5, 0], [6, 0], [7, 0], [8, 0], [9, 0]]:
         r = parse(o['payload'], fmt['others']['note'])
@@ -106,7 +117,7 @@ for o in read(dir, 'others'):
     elif t in [[0, 4], [1, 4]]:
         r = parse(o['payload'], fmt['others']['image'])
         other = Image(r['path'], r['descr'],
-                        r['dimensions'], r['print_where'])
+                      r['dimensions'], r['print_where'])
         ref.images[n] = other
     elif t in [[0, 7], [1, 7]]:
         r = parse(o['payload'], fmt['others']['file'])
@@ -123,7 +134,11 @@ for o in read(dir, 'others'):
     elif t in [[3, 0], [4, 0]]:
         r = parse(o['payload'], fmt['others']['witness'])
         person = persons[r['person_id']]
-        other = Witness(person, r['role'], r['other role'])
+        if r['type'] == -1:
+            print(
+                f'WARNING:no explicit witness type defined for person #{r["person_id"]}')
+            r['type'] = 0
+        other = Witness(person, witness_type_map[r['type']], r['extra_type'])
         ref.witnesses[n] = other
     elif t in [[8, 4], [8, 5], [9, 4]]:
         r = parse(o['payload'], fmt['others']['file'])
@@ -150,19 +165,21 @@ for c in citation_list:
     if c['ref_id'] > 0:
         t = [c['ref_type'], c['type']]
         ref = refs[t[0]][c['ref_id']]
-        if t == [7,0]:
-            list = ref.child_citations  
-        elif t ==[0,1]:
+        if t == [7, 0]:
+            list = ref.child_citations
+        elif t == [0, 1]:
             list = ref.name_citations
-        else: 
+        else:
             list = ref.citations
         list[c['seq_nr']] = citations[c['id']]
 
-print(persons[8])
+# print(persons[8])
 print(persons[7])
-print(families[87])
+# print(families[87])
 
-# TODO: incorporate addition and modificcation dates
+# TODO Name type enumeration/translation
+# TODO where is the privacy setting stored?
+# TODO citation + attachment colors
 # TODO: consider enumeration for message reference types
 # TODO: refactor hashing raw lists
 # TODO: check bi-directorional reference
@@ -170,9 +187,5 @@ print(families[87])
 #           - source text references
 # TODO add type to functions
 # TODO consider parse to add to existing dict iso creating new, needs disjoint dict names in 'others'
-# TODO where is the privacy setting stored?
-# TODO citation + attachment colors
-# TODO citation attachment headings
-# TODO citation reach
-# TODO refactor date added modified + make str
-# TODO consider event name enum 
+# TODO consider event name enum
+# TODO: add  addition and modification dates to models

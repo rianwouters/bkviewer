@@ -7,21 +7,23 @@ class SimpleDate:
     def __str__(self):
         return '' if self.s == None else self.s
 
-class FromToDate:
-    def __init__(self, frm, to):
-        self.frm = frm
-        self.to = to
 
-    def __str__(self):
-        return f'from {self.s1} to {self.s2}'
-
-class BetweenDates:
+class DateRange:
     def __init__(self, s1, s2):
-        self.s1 = s1
-        self.s2 = s2
-    
+        self.s = [s1, s2]
+
     def __str__(self):
-        return f'between {self.s1} and {self.s2}'
+        s = list(map(lambda s: 'empty' if s == '' else s, self.s))
+        return f'{self.f[0]} {s[0]} {self.f[1]} {s[1]}'
+
+
+class FromToDate(DateRange):
+    f = ['from', 'to']
+
+
+class BetweenDates(DateRange):
+    f = ['between', 'and']
+
 
 def create_date(s1, s2, type):
     # date1 = datetime.strptime("%y%m%d", d1) if d1 != '' else None

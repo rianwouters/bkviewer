@@ -1,112 +1,117 @@
 from itertools import accumulate
 from os.path import join
+from datetime import datetime
 
-# TODO make translation easier by using enums?
-_event_types = dict([
-  (1 , 'Born'),
-  (5 , 'Baptized'),
-  (9 , 'Christened'),
-  (13 , 'Died'),
-  (19 , 'Cremated'),
-  (23 , 'Adopted by both'),
-  (30 , 'Adopted by father'),
-  (40 , 'Adopted by mother'),
-  (50 , 'Baptized LDS'),
-  (60 , 'Bar Mitzvah'),
-  (70 , 'Bar Mitzvah'),
-  (80 , 'Blessing'),
-  (82 , 'Brit Milah'),
-  (85 , 'Census'),
-  (90 , 'Christened (adult)'),
-  (100 , 'Confirmation'),
-  (110 , 'Confirmation LDS'),
-  (120 , 'Emigrated'),
-  (130 , 'Endowment LDS'),
-  (140 , 'Event'),
-  (150 , 'First Communion'),
-  (155 , 'Funeral'),    
-  (160 , 'Graduated'),    
-  (170 , 'Immigrated'),    
-  (174 , 'Interred'),    
-  (180 , 'Naturalized'),    
-  (190 , 'Ordination'),    
-  (200 , 'Probate'),    
-  (210 , 'Retirement'),    
-  (215 , 'Resided'),    
-  (220 , 'Sealed child LDS'),    
-  (230 , 'Will signed'),    
-  (233 , 'Yartzeit'),    
-  (235 , 'Verify home christening'),    
-  (236 , 'Churching of woman'),    
-  (237 , 'Memorial serivce'),    
-  (240 , '----------------'),    
-  (380 , '----------------'),    
-  (383 , 'Not living'),    
-  (385 , 'Never marred'),    
-  (388 , 'No children from this person'),    
-  (399 , '----------------'),    
-  (401 , 'Occupation'),    
-  (405 , 'Military'),    
-  (410 , 'Religion'),    
-  (420 , 'Education'),    
-  (430 , 'Nationality'),    
-  (440 , 'Caste'),    
-  (450 , 'Ref number'),    
-  (460 , 'AFN number'),    
-  (470 , 'Social Security Number'),    
-  (480 , 'Permanent number'),    
-  (490 , 'ID number'),    
-  (492 , 'Y-DNA'),    
-  (494 , 'mtDNA'),    
-  (496 , 'atDNA'),    
-  (502 , 'Legal name change'),    
-  (510 , 'Height'),    
-  (520 , 'Weight'),    
-  (530 , 'Eye color'),    
-  (540 , 'Hair color'),    
-  (550 , 'Description'),    
-  (555 , 'Property'),    
-  (560 , 'Medical condition'),    
-  (570 , 'Cause of death'),    
-  (580 , 'Number of children (person)'),    
-  (590 , 'Ancestor interest'),    
-  (600 , 'Descendant interest'),    
-  (660 , '----------------'),    
-  (701 , 'Married'),    
-  (703 , 'Married (civil)'),    
-  (705 , 'Married (religious)'),    
-  (710 , 'Divorced'),    
-  (720 , 'Married Bann'),    
-  (725 , 'Marriage Bond'),    
-  (730 , 'Marriage contract'),    
-  (740 , 'Marriage license'),    
-  (750 , 'Marriage settlement'),    
-  (753 , 'Marriage intention'),    
-  (760 , 'Divorce filed'),    
-  (770 , 'Separated'),    
-  (780 , 'Annulled'),    
-  (790 , 'Engaged'),    
-  (800 , 'Sealed to spouse LDS'),    
-  (805 , 'Resided (family)'),    
-  (810 , 'Event (family)'),    
-  (814 , 'Census (family)'),    
-  (830 , '----------------'),  
-  (860 , '----------------'),    
-  (910 , 'Not married'),    
-  (920 , 'Common law'),    
-  (930 , 'No children from this marriage'),    
-  (936 , '----------------'),    
-  (940 , 'Number of Children (family)'),    
-  (960 , 'Marr ID number'),    
-  (970 , 'Marr Ref number'),    
+_event_type_names = dict([
+    (1, 'Born'),
+    (5, 'Baptized'),
+    (9, 'Christened'),
+    (13, 'Died'),
+    (16, 'Burried'),
+    (19, 'Cremated'),
+    (23, 'Adopted by both'),
+    (30, 'Adopted by father'),
+    (40, 'Adopted by mother'),
+    (50, 'Baptized LDS'),
+    (60, 'Bar Mitzvah'),
+    (70, 'Bar Mitzvah'),
+    (80, 'Blessing'),
+    (82, 'Brit Milah'),
+    (85, 'Census'),
+    (90, 'Christened (adult)'),
+    (100, 'Confirmation'),
+    (110, 'Confirmation LDS'),
+    (120, 'Emigrated'),
+    (130, 'Endowment LDS'),
+    (140, 'Event'),
+    (150, 'First Communion'),
+    (155, 'Funeral'),
+    (160, 'Graduated'),
+    (170, 'Immigrated'),
+    (174, 'Interred'),
+    (180, 'Naturalized'),
+    (190, 'Ordination'),
+    (200, 'Probate'),
+    (210, 'Retirement'),
+    (215, 'Resided'),
+    (220, 'Sealed child LDS'),
+    (230, 'Will signed'),
+    (233, 'Yartzeit'),
+    (235, 'Verify home christening'),
+    (236, 'Churching of woman'),
+    (237, 'Memorial serivce'),
+    (340, '----------------'),
+    (380, '----------------'),
+    (381, 'Not living'),
+    (385, 'Never marred'),
+    (388, 'No children from this person'),
+    (399, '----------------'),
+    (401, 'Occupation'),
+    (405, 'Military'),
+    (410, 'Religion'),
+    (420, 'Education'),
+    (430, 'Nationality'),
+    (440, 'Caste'),
+    (450, 'Ref number'),
+    (460, 'AFN number'),
+    (470, 'Social Security Number'),
+    (480, 'Permanent number'),
+    (490, 'ID number'),
+    (492, 'Y-DNA'),
+    (494, 'mtDNA'),
+    (496, 'atDNA'),
+    (502, 'Legal name change'),
+    (510, 'Height'),
+    (520, 'Weight'),
+    (530, 'Eye color'),
+    (540, 'Hair color'),
+    (550, 'Description'),
+    (555, 'Property'),
+    (560, 'Medical condition'),
+    (570, 'Cause of death'),
+    (580, 'Number of children (person)'),
+    (590, 'Ancestor interest'),
+    (600, 'Descendant interest'),
+    (660, '----------------'),
+    (701, 'Married'),
+    (703, 'Married (civil)'),
+    (705, 'Married (religious)'),
+    (710, 'Divorced'),
+    (720, 'Married Bann'),
+    (725, 'Marriage Bond'),
+    (730, 'Marriage contract'),
+    (740, 'Marriage license'),
+    (750, 'Marriage settlement'),
+    (753, 'Marriage intention'),
+    (760, 'Divorce filed'),
+    (770, 'Separated'),
+    (780, 'Annulled'),
+    (790, 'Engaged'),
+    (800, 'Sealed to spouse LDS'),
+    (805, 'Resided (family)'),
+    (810, 'Event (family)'),
+    (814, 'Census (family)'),
+    (830, '----------------'),
+    (860, '----------------'),
+    (910, 'Not married'),
+    (920, 'Common law'),
+    (930, 'No children from this marriage'),
+    (936, '----------------'),
+    (940, 'Number of Children (family)'),
+    (960, 'Marr ID number'),
+    (970, 'Marr Ref number'),
 ])
 
-def event_name(type, custom_name):
-    return _event_types.get(type, custom_name)
+
+def event_type_name(t, name):
+    return name if name else _event_type_names[t]
 
 def parse(s, df):
     pos = accumulate(df, lambda t, f: t + f['l'], initial=0)
     return {f['n']: f['t'](s[n:n+f['l']]) for f, n in zip(df, pos)}
+
+# TODO this fails if end of lines or incorrectly mixed up as \x0d \x0d \x0a for example
+# seems to work in most cases but for some reasons sometimes an extra \x0a ends up in some files
 
 
 def read(dir, name):
@@ -129,7 +134,7 @@ def to_boolean(s):
 
 
 def to_int(s):
-    try: 
+    try:
         return -1 if s.strip() == '' or s == '\x00' else int(s)
     except:
         return s
@@ -137,6 +142,13 @@ def to_int(s):
 
 def to_str(s):
     return s.strip()
+
+
+def to_date(s):
+    try:
+        return datetime.strptime(s, "%Y%m%d")
+    except:
+        return None
 
 
 def to_ids(s):
@@ -150,8 +162,17 @@ def to_ids(s):
 def asterisk(s):
     if s == '*':
         return s
-    raise Exception("Parsing error: expected '*'")
+    raise Exception(f"Parsing error: {s} (expected '*')")
 
+
+_modification_dates = [
+    {'l': 8, 't': to_date, 'n': 'date_added'},
+    # 5 means converted from BK5 which did not have this data, so it was converted from the modification date
+    {'l': 4, 't': to_int, 'n': 'date_added_metadata'},
+    {'l': 8, 't': to_date, 'n': 'date_modified'},
+    # 5 means converted from BK5 so it may be the same as the added date
+    {'l': 4, 't': to_int, 'n': 'date_modified_metadata'},
+]
 
 fmt = {
     'persons': {
@@ -170,7 +191,7 @@ fmt = {
             {'l': 40, 't': to_str, 'n': 'surname'},
             {'l': 40, 't': to_str, 'n': 'sortingname'},
             {'l': 50, 't': to_str, 'n': 'title'},
-            {'l': 2, 't': to_str, 'n': 'sexe'},
+            {'l': 2, 't': to_int, 'n': 'sexe'},
             {'l': 8, 't': to_int, 'n': 'family_id1?'},
             {'l': 8, 't': to_int, 'n': 'family_id2?'},
             {'l': 8, 't': to_str, 'n': '??'},
@@ -178,13 +199,10 @@ fmt = {
             {'l': 1, 't': to_str, 'n': 'parent_types1'},
             {'l': 1, 't': to_str, 'n': 'parent_types2'},
             {'l': 8, 't': to_int, 'n': '??'},
-            {'l': 8, 't': to_int, 'n': 'date_added'},
-            # 5 means converted from BK5 which did not have this data, so it was converted from the modification date
-            {'l': 4, 't': to_int, 'n': 'date_added_metadata'},
-            {'l': 8, 't': to_int, 'n': 'date_modified'},
-            # 5 means converted from BK5 so it may be the same as the added date
-            {'l': 4, 't': to_int, 'n': 'date_modified_metadata'},
-            {'l': 85, 't': to_str, 'n': '??1'},
+            *_modification_dates,
+            {'l': 8, 't': to_str, 'n': 'empty?'},
+            {'l': 1, 't': to_int, 'n': 'privacy'},
+            {'l': 76, 't': to_str, 'n': 'unclear?'},
             {'l': 10, 't': to_str, 'n': 'groups'},
             {'l': 31, 't': to_str, 'n': '??2'},
             {'l': 12, 't': to_str, 'n': 'find_a_grave'},
@@ -209,12 +227,7 @@ fmt = {
             {'l': 3, 't': to_int, 'n': 'partner2_seq_nr'},
             {'l': 4, 't': to_str, 'n': 'unused?'},
             {'l': 608, 't': to_ids, 'n': 'children'},
-            {'l': 8, 't': to_int, 'n': 'date_added'},
-            # 5 means converted from BK5 which did not have this data, so it was converted from the modification date
-            {'l': 4, 't': to_int, 'n': 'date_added_metadata'},
-            {'l': 8, 't': to_int, 'n': 'date_modified'},
-            # 5 means converted from BK5 so it may be the same as the added date
-            {'l': 4, 't': to_int, 'n': 'date_modified_metadata'},
+            *_modification_dates,
             {'l': 107, 't': to_str, 'n': '??'},
             {'l': 8, 't': to_int, 'n': 'next_id'},
             {'l': 8, 't': to_int, 'n': 'next2_id'},
@@ -232,12 +245,7 @@ fmt = {
             {'l': 9, 't': to_int, 'n': 'ref_id'},
             {'l': 3, 't': to_int, 'n': 'seq_nr'},
             {'l': 9, 't': to_int, 'n': '??1'},
-            {'l': 8, 't': to_int, 'n': 'date_added'},
-            # 5 means converted from BK5 which did not have this data, so it was converted from the modification date
-            {'l': 4, 't': to_int, 'n': 'date_added_metadata'},
-            {'l': 8, 't': to_int, 'n': 'date_modified'},
-            # 5 means converted from BK5 so it may be the same as the added date
-            {'l': 4, 't': to_int, 'n': 'date_modified_metadata'},
+            *_modification_dates,
             {'l': 14, 't': to_int, 'n': '??2'},
             {'l': 9, 't': to_int, 'n': 'next_seq_id'},
             {'l': 9, 't': to_int, 'n': 'next_id'},
@@ -261,10 +269,10 @@ fmt = {
             {'l': 1, 't': asterisk, 'n': 'end_marker'},
         ],
         'witness': [
-            {'l': 1, 't': to_int, 'n': 'role'},
+            {'l': 1, 't': to_int, 'n': 'type'},
             {'l': 8, 't': to_int, 'n': 'person_id'},
             {'l': 200, 't': to_str, 'n': 'unused?'},
-            {'l': 100, 't': to_str, 'n': 'other role'},
+            {'l': 100, 't': to_str, 'n': 'extra_type'},
             {'l': 57, 't': to_str, 'n': 'unused2?'},
         ],
         'name': [
@@ -390,12 +398,7 @@ fmt = {
             {'l': 9, 't': to_int, 'n': 'info_id'},
             {'l': 1, 't': to_str, 'n': '??2'},
             {'l': 61, 't': to_str, 'n': '??3'},
-            {'l': 8, 't': to_int, 'n': 'date_added'},
-            # 5 means converted from BK5 which did not have this data, so it was converted from the modification date
-            {'l': 4, 't': to_int, 'n': 'date_added_metadata'},
-            {'l': 8, 't': to_int, 'n': 'date_modified'},
-            # 5 means converted from BK5 so it may be the same as the added date
-            {'l': 4, 't': to_int, 'n': 'date_modified_metadata'},
+            *_modification_dates,
             {'l': 1, 't': to_boolean, 'n': 'title_enabled'},
             {'l': 1, 't': to_boolean, 'n': 'author_enabled'},
             {'l': 1, 't': to_boolean, 'n': 'publisher_year_enabled'},
@@ -428,12 +431,7 @@ fmt = {
             {'l': 9, 't': to_int, 'n': 'info_id'},
             {'l': 1, 't': to_int, 'n': 'unused2?'},
             {'l': 1, 't': to_int, 'n': 'quality'},
-            {'l': 8, 't': to_str, 'n': 'date_added'},
-            # 5 means converted from BK5 which did not have this data, so it was converted from the modification date
-            {'l': 4, 't': to_str, 'n': 'date_added_metadata'},
-            {'l': 8, 't': to_str, 'n': 'date_modified'},
-            # 5 means converted from BK5 so it may be the same as the added date
-            {'l': 4, 't': to_str, 'n': 'date_modified_metadata'},
+            *_modification_dates,
             {'l': 1, 't': to_boolean, 'n': 'text_enabled'},
             {'l': 1, 't': to_boolean, 'n': 'info_enabled'},
             {'l': 1, 't': to_boolean, 'n': 'descr_enabled'},
@@ -500,16 +498,11 @@ fmt = {
             {'l': 1, 't': to_int, 'n': 'unused'},
             {'l': 1, 't': to_int, 'n': 'unused'},
             {'l': 179, 't': to_str, 'n': 'unused1?'},
-            {'l': 8, 't': to_str, 'n': 'date_added'},
-            # 5 means converted from BK5 which did not have this data, so it was converted from the modification date
-            {'l': 4, 't': to_str, 'n': 'date_added_metadata'},
-            {'l': 8, 't': to_str, 'n': 'date_modified'},
-            # 5 means converted from BK5 so it may be the same as the added date
-            {'l': 4, 't': to_str, 'n': 'date_modified_metadata'},
+            *_modification_dates,
             {'l': 16, 't': to_str, 'n': 'unused2?'},
-            {'l': 8, 't': to_int, 'n': 'next_id'},
-            {'l': 8, 't': to_int, 'n': 'prev_id'},
-            # {'l': 1, 't': asterisk, 'n': 'end_marker'},
+            {'l': 8, 't': to_str, 'n': 'next_id'},
+            {'l': 8, 't': to_str, 'n': 'prev_id'},
+            {'l': 1, 't': asterisk, 'n': 'end_marker'},
         ]
     }
 }
