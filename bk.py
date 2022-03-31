@@ -303,7 +303,7 @@ fmt = {
             {'l': 206, 't': to_str, 'n': 'path'},
             {'l': 3, 't': to_int, 'n': 'print_where'},
             {'l': 100, 't': to_str, 'n': 'unused1?'},
-            {'l': 9, 't': to_int, 'n': 'mess_id'},
+            {'l': 9, 't': to_int, 'n': 'msg_id'},
             {'l': 48, 't': to_str, 'n': 'unused2?'},
         ],
         'media': [
@@ -331,7 +331,8 @@ fmt = {
             {'l': 57, 't': to_str, 'n': 'unused2?'},
         ],
         'todo': [
-            {'l': 3, 't': to_int, 'n': 'unused1?'},
+            {'l': 2, 't': to_int, 'n': 'unused1?'},
+            {'l': 1, 't': to_str, 'n': 'type'},
             {'l': 1, 't': to_str, 'n': 'space'},
             {'l': 150, 't': to_str, 'n': 'descr'},
             {'l': 20, 't': to_str, 'n': 'date1'},

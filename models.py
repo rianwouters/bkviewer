@@ -154,12 +154,15 @@ class Image(Media):
 
 
 class Todo:
-    def __init__(self, status, prio, loc, arch, descr, text) -> None:
+    def __init__(self, date, type, status, prio, loc, arch, descr, text) -> None:
+        self.date = date
+        self.type = type
         self.status = status
         self.prio = prio
         self.loc = loc
         self.arch = arch
         self.descr = descr
+        self.text = text
         self.note = None
 
     def __str__(self) -> str:
