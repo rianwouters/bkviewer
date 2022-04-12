@@ -1,132 +1,23 @@
-from itertools import accumulate
-from os.path import join
+from asyncio import Handle
+from audioop import add
 from datetime import datetime
-
-_event_type_names = dict([
-    (1, 'Born'),
-    (5, 'Baptized'),
-    (9, 'Christened'),
-    (13, 'Died'),
-    (16, 'Burried'),
-    (19, 'Cremated'),
-    (23, 'Adopted by both'),
-    (30, 'Adopted by father'),
-    (40, 'Adopted by mother'),
-    (50, 'Baptized LDS'),
-    (60, 'Bar Mitzvah'),
-    (70, 'Bar Mitzvah'),
-    (80, 'Blessing'),
-    (82, 'Brit Milah'),
-    (85, 'Census'),
-    (90, 'Christened (adult)'),
-    (100, 'Confirmation'),
-    (110, 'Confirmation LDS'),
-    (120, 'Emigrated'),
-    (130, 'Endowment LDS'),
-    (140, 'Event'),
-    (150, 'First Communion'),
-    (155, 'Funeral'),
-    (160, 'Graduated'),
-    (170, 'Immigrated'),
-    (174, 'Interred'),
-    (180, 'Naturalized'),
-    (190, 'Ordination'),
-    (200, 'Probate'),
-    (210, 'Retirement'),
-    (215, 'Resided'),
-    (220, 'Sealed child LDS'),
-    (230, 'Will signed'),
-    (233, 'Yartzeit'),
-    (235, 'Verify home christening'),
-    (236, 'Churching of woman'),
-    (237, 'Memorial serivce'),
-    (340, '----------------'),
-    (380, '----------------'),
-    (381, 'Not living'),
-    (385, 'Never marred'),
-    (388, 'No children from this person'),
-    (399, '----------------'),
-    (401, 'Occupation'),
-    (405, 'Military'),
-    (410, 'Religion'),
-    (420, 'Education'),
-    (430, 'Nationality'),
-    (440, 'Caste'),
-    (450, 'Ref number'),
-    (460, 'AFN number'),
-    (470, 'Social Security Number'),
-    (480, 'Permanent number'),
-    (490, 'ID number'),
-    (492, 'Y-DNA'),
-    (494, 'mtDNA'),
-    (496, 'atDNA'),
-    (502, 'Legal name change'),
-    (510, 'Height'),
-    (520, 'Weight'),
-    (530, 'Eye color'),
-    (540, 'Hair color'),
-    (550, 'Description'),
-    (555, 'Property'),
-    (560, 'Medical condition'),
-    (570, 'Cause of death'),
-    (580, 'Number of children (person)'),
-    (590, 'Ancestor interest'),
-    (600, 'Descendant interest'),
-    (660, '----------------'),
-    (701, 'Married'),
-    (703, 'Married (civil)'),
-    (705, 'Married (religious)'),
-    (710, 'Divorced'),
-    (720, 'Married Bann'),
-    (725, 'Marriage Bond'),
-    (730, 'Marriage contract'),
-    (740, 'Marriage license'),
-    (750, 'Marriage settlement'),
-    (753, 'Marriage intention'),
-    (760, 'Divorce filed'),
-    (770, 'Separated'),
-    (780, 'Annulled'),
-    (790, 'Engaged'),
-    (800, 'Sealed to spouse LDS'),
-    (805, 'Resided (family)'),
-    (810, 'Event (family)'),
-    (814, 'Census (family)'),
-    (830, '----------------'),
-    (860, '----------------'),
-    (910, 'Not married'),
-    (920, 'Common law'),
-    (930, 'No children from this marriage'),
-    (936, '----------------'),
-    (940, 'Number of Children (family)'),
-    (960, 'Marr ID number'),
-    (970, 'Marr Ref number'),
-])
+from fnmatch import fnmatch
+from os.path import join
+from itertools import accumulate
+from models import Event, ExtNote, Fact, File, Genealogy, Image, IntNote, Media, Name, Person, Location, Source, Citation, Family, Address, Todo, Witness
+from maps import sexe_type_map, privacy_type_map, event_type_map, name_type_map, witness_type_map, todo_type_map, todo_status_map
+from dates import create_date
 
 
-def event_type_name(t, name):
-    return name if name else _event_type_names[t]
-
-def parse(s, df):
-    pos = accumulate(df, lambda t, f: t + f['l'], initial=0)
-    return {f['n']: f['t'](s[n:n+f['l']]) for f, n in zip(df, pos)}
-
-# TODO this fails if end of lines or incorrectly mixed up as \x0d \x0d \x0a for example
-# seems to work in most cases but for some reasons sometimes an extra \x0a ends up in some files
+class Field:
+    def __init__(self, name, len, fn):
+        self.name = name
+        self.len = len
+        self.fn = fn
 
 
-def read(dir, name):
-    df = fmt[name]
-    with open(join(dir, df['fname'])) as f:
-        lines = f.readlines()
-    n = 0
-    while n < len(lines):
-        bkline = lines[n]
-        n += 1
-        while bkline[-2] != "*":
-            bkline += '\n' + lines[n]
-            n += 1
-        p = parse(bkline, df['def'])
-        yield p
+def _date(row):
+    return create_date(row['date1'], row['date2'], row['date_type'])
 
 
 def to_boolean(s):
@@ -166,344 +57,609 @@ def asterisk(s):
 
 
 _modification_dates = [
-    {'l': 8, 't': to_date, 'n': 'date_added'},
+    Field('date_added', 8, to_date),
     # 5 means converted from BK5 which did not have this data, so it was converted from the modification date
-    {'l': 4, 't': to_int, 'n': 'date_added_metadata'},
-    {'l': 8, 't': to_date, 'n': 'date_modified'},
+    Field('date_added_metadata', 4, to_int),
+    Field('date_modified', 8, to_date),
     # 5 means converted from BK5 so it may be the same as the added date
-    {'l': 4, 't': to_int, 'n': 'date_modified_metadata'},
+    Field('date_modified_metadata', 4, to_int),
 ]
 
-fmt = {
-    'persons': {
-        'fname': 'BKPerson.dt7',
-        'def': [
-            {'l': 8, 't': to_int, 'n': 'id'},
-            {'l': 5, 't': to_str, 'n': 'surname_prefix_5caps'},
-            {'l': 5, 't': to_str, 'n': 'firstname_prefix_5caps'},
-            {'l': 140, 't': to_str, 'n': 'fullname'},
-            {'l': 10, 't': to_str, 'n': 'surname_prefix_10caps'},
-            {'l': 10, 't': to_str, 'n': 'firstname_prefix_10caps'},
-            {'l': 40, 't': to_str, 'n': '??'},
-            {'l': 40, 't': to_str, 'n': 'prefix'},
-            {'l': 40, 't': to_str, 'n': 'postfix'},
-            {'l': 40, 't': to_str, 'n': 'firstname'},
-            {'l': 40, 't': to_str, 'n': 'surname'},
-            {'l': 40, 't': to_str, 'n': 'sortingname'},
-            {'l': 50, 't': to_str, 'n': 'title'},
-            {'l': 2, 't': to_int, 'n': 'sexe'},
-            {'l': 8, 't': to_int, 'n': 'family_id1?'},
-            {'l': 8, 't': to_int, 'n': 'family_id2?'},
-            {'l': 8, 't': to_str, 'n': '??'},
-            {'l': 8, 't': to_str, 'n': '??'},
-            {'l': 1, 't': to_str, 'n': 'parent_types1'},
-            {'l': 1, 't': to_str, 'n': 'parent_types2'},
-            {'l': 8, 't': to_int, 'n': '??'},
-            *_modification_dates,
-            {'l': 8, 't': to_str, 'n': 'empty?'},
-            {'l': 1, 't': to_int, 'n': 'privacy'},
-            {'l': 76, 't': to_str, 'n': 'unclear?'},
-            {'l': 10, 't': to_str, 'n': 'groups'},
-            {'l': 31, 't': to_str, 'n': '??2'},
-            {'l': 12, 't': to_str, 'n': 'find_a_grave'},
-            {'l': 8, 't': to_int, 'n': 'i1'},
-            {'l': 8, 't': to_int, 'n': 'i2'},
-            {'l': 8, 't': to_int, 'n': 'i3'},
-            {'l': 8, 't': to_int, 'n': 'i4'},
-            {'l': 8, 't': to_int, 'n': 'i5'},
-            {'l': 8, 't': to_int, 'n': 'i6'},
-            {'l': 8, 't': to_int, 'n': 'i7'},
-            {'l': 8, 't': to_int, 'n': 'i8'},
-            {'l': 1, 't': asterisk, 'n': 'end_marker'},
-        ]
-    },
-    'marriages': {
-        'fname': 'BKMarr.dt7',
-        'def': [
-            {'l': 8, 't': to_int, 'n': 'id'},
-            {'l': 8, 't': to_int, 'n': 'partner1_id'},
-            {'l': 3, 't': to_int, 'n': 'partner1_seq_nr'},
-            {'l': 8, 't': to_int, 'n': 'partner2_id'},
-            {'l': 3, 't': to_int, 'n': 'partner2_seq_nr'},
-            {'l': 4, 't': to_str, 'n': 'unused?'},
-            {'l': 608, 't': to_ids, 'n': 'children'},
-            *_modification_dates,
-            {'l': 107, 't': to_str, 'n': '??'},
-            {'l': 8, 't': to_int, 'n': 'next_id'},
-            {'l': 8, 't': to_int, 'n': 'next2_id'},
-            {'l': 8, 't': to_int, 'n': 'prev_id'},
-            {'l': 8, 't': to_int, 'n': 'prev2_id'},
-            {'l': 1, 't': asterisk, 'n': 'end_marker'},
-        ]
-    },
-    'messages': {
-        'fname': 'BKMessg.dt7',
-        'def': [
-            {'l': 9, 't': to_int, 'n': 'id'},
-            {'l': 1, 't': to_str, 'n': 'ref_type'},
-            # 0 = person, 1 = family, 3 = source information, 5 = event, ...
-            {'l': 9, 't': to_int, 'n': 'ref_id'},
-            {'l': 3, 't': to_int, 'n': 'seq_nr'},
-            {'l': 9, 't': to_int, 'n': '??1'},
-            *_modification_dates,
-            {'l': 14, 't': to_int, 'n': '??2'},
-            {'l': 9, 't': to_int, 'n': 'next_seq_id'},
-            {'l': 9, 't': to_int, 'n': 'next_id'},
-            {'l': 9, 't': to_int, 'n': 'prev_id'},
-            {'l': 1, 't': asterisk, 'n': 'start_marker'},
-            {'l': 1200, 't': to_str, 'n': 'text'},
-            {'l': 1, 't': asterisk, 'n': 'end_marker'},
-        ]
-    },
-    'others': {
-        'fname': 'BKOther.dt7',
-        'def': [
-            {'l': 9, 't': to_int, 'n': 'id'},
-            {'l': 1, 't': to_int, 'n': 'ref_type'},
-            {'l': 9, 't': to_int, 'n': 'ref_id'},
-            {'l': 1, 't': to_int, 'n': 'type'},
-            {'l': 3, 't': to_int, 'n': 'seq_nr'},
-            {'l': 366, 't': lambda s: s, 'n': 'payload'},
-            {'l': 9, 't': to_int, 'n': 'next_id'},
-            {'l': 9, 't': to_int, 'n': 'prev_id'},
-            {'l': 1, 't': asterisk, 'n': 'end_marker'},
-        ],
-        'witness': [
-            {'l': 1, 't': to_int, 'n': 'type'},
-            {'l': 8, 't': to_int, 'n': 'person_id'},
-            {'l': 200, 't': to_str, 'n': 'unused?'},
-            {'l': 100, 't': to_str, 'n': 'extra_type'},
-            {'l': 57, 't': to_str, 'n': 'unused2?'},
-        ],
-        'name': [
-            {'l': 3, 't': to_int, 'n': 'type'},
-            {'l': 1, 't': to_str, 'n': 'space'},
-            {'l': 150, 't': to_str, 'n': 'text'},
-            {'l': 20, 't': to_str, 'n': 'date1'},
-            {'l': 20, 't': to_str, 'n': 'date2'},
-            # 1 = "event started date1 and ended date 2", 2 = "event between date1 and date2", 0 or empty = on date1
-            {'l': 1, 't': to_str, 'n': 'date_type'},
-            {'l': 11, 't': to_str, 'n': 'unused1?'},
-            {'l': 3, 't': to_int, 'n': 'print_where'},
-            {'l': 157, 't': to_str, 'n': 'unused2?'},
-        ],
-        'fact': [
-            {'l': 3, 't': to_int, 'n': 'type'},
-            {'l': 1, 't': to_str, 'n': 'space'},
-            {'l': 150, 't': to_str, 'n': 'descr'},
-            {'l': 20, 't': to_str, 'n': 'date1'},
-            {'l': 20, 't': to_str, 'n': 'date2'},
-            # 1 = "event started date1 and ended date 2", 2 = "event between date1 and date2", 0 or empty = on date1
-            {'l': 1, 't': to_str, 'n': 'date_type'},
-            {'l': 123, 't': to_str, 'n': 'unused1?'},
-            {'l': 18, 't': to_str, 'n': 'custom_name'},
-            {'l': 30, 't': to_str, 'n': 'unused2?'},
-        ],
-        'note': [
-            {'l': 206, 't': to_str, 'n': 'path'},
-            {'l': 3, 't': to_int, 'n': 'print_where'},
-            {'l': 100, 't': to_str, 'n': 'unused1?'},
-            {'l': 9, 't': to_int, 'n': 'msg_id'},
-            {'l': 48, 't': to_str, 'n': 'unused2?'},
-        ],
-        'media': [
-            {'l': 4, 't': to_str, 'n': 'space'},
-            {'l': 150, 't': to_str, 'n': 'path'},
-            {'l': 100, 't': to_str, 'n': 'descr'},
-            {'l': 112, 't': to_str, 'n': 'unused?'},
-        ],
-        'file': [
-            {'l': 4, 't': to_str, 'n': 'space'},
-            {'l': 150, 't': to_str, 'n': 'path'},
-            {'l': 52, 't': to_str, 'n': 'unused1?'},
-            {'l': 3, 't': to_int, 'n': 'unused2?'},
-            {'l': 100, 't': to_str, 'n': 'descr'},
-            {'l': 57, 't': to_str, 'n': 'unused3'},
-        ],
-        'image': [
-            {'l': 4, 't': to_str, 'n': 'space'},
-            {'l': 150, 't': to_str, 'n': 'path'},
-            {'l': 47, 't': to_str, 'n': 'unused1?'},
-            {'l': 2, 't': to_str, 'n': 'dimensions'},
-            {'l': 3, 't': to_str, 'n': 'unused2?'},
-            {'l': 3, 't': to_str, 'n': 'print_where'},
-            {'l': 100, 't': to_str, 'n': 'descr'},
-            {'l': 57, 't': to_str, 'n': 'unused2?'},
-        ],
-        'todo': [
-            {'l': 2, 't': to_int, 'n': 'unused1?'},
-            {'l': 1, 't': to_str, 'n': 'type'},
-            {'l': 1, 't': to_str, 'n': 'space'},
-            {'l': 150, 't': to_str, 'n': 'descr'},
-            {'l': 20, 't': to_str, 'n': 'date1'},
-            {'l': 20, 't': to_str, 'n': 'date2'},
-            # 1 = "event started date1 and ended date 2", 2 = "event between date1 and date2", 0 or empty = on date1
-            {'l': 1, 't': to_str, 'n': 'date_type'},
-            {'l': 1, 't': to_str, 'n': 'status'},
-            {'l': 8, 't': to_str, 'n': 'other_flags?'},
-            {'l': 1, 't': to_str, 'n': 'prio'},
-            {'l': 4, 't': to_str, 'n': 'other_flags?'},
-            {'l': 8, 't': to_int, 'n': 'loc_id'},
-            {'l': 8, 't': to_str, 'n': 'arch_id'},
-            {'l': 85, 't': to_str, 'n': 'unused2?'},
-            {'l': 8, 't': to_int, 'n': 'text_id'},
-            {'l': 48, 't': to_str, 'n': 'unused3?'},
-        ],
-        'location': [
-            {'l': 4, 't': to_str, 'n': 'space'},
-            {'l': 40, 't': to_str, 'n': 'farm_or_manor_name'},
-            {'l': 40, 't': to_str, 'n': 'parish'},
-            {'l': 125, 't': to_str, 'n': 'postal_address'},
-            {'l': 25, 't': to_str, 'n': 'resident_id'},
-            {'l': 25, 't': to_str, 'n': 'residence_number'},
-            {'l': 25, 't': to_str, 'n': 'farm_number'},
-            {'l': 25, 't': to_str, 'n': 'property_number'},
-            {'l': 57, 't': to_str, 'n': 'unused?'},
-        ]
-    },
-    'locations': {
-        'fname': 'BKLocate.dt7',
-        'def': [
-            {'l': 8, 't': to_int, 'n': 'id'},
-            {'l': 120, 't': to_str, 'n': 'name'},
-            {'l': 41, 't': to_str, 'n': 'short_name'},
-            {'l': 40, 't': to_str, 'n': 'city'},
-            {'l': 40, 't': to_str, 'n': 'township'},
-            {'l': 40, 't': to_str, 'n': 'county'},
-            {'l': 40, 't': to_str, 'n': 'state_or_province'},
-            {'l': 40, 't': to_str, 'n': 'country'},
-            {'l': 8, 't': to_int, 'n': 'ref_id??'},
-            {'l': 15, 't': to_str, 'n': 'latitude'},
-            {'l': 15, 't': to_str, 'n': 'longitude'},
-            {'l': 8, 't': to_int, 'n': 'other_id'},
-            {'l': 8, 't': to_int, 'n': 'next_id'},
-            {'l': 8, 't': to_int, 'n': 'prev_id'},
-            {'l': 1, 't': asterisk, 'n': 'end_marker'},
-        ]
-    },
-    'sources': {
-        'fname': 'BKSource.dt7',
-        'def': [
-            {'l': 8, 't': to_int, 'n': 'id'},
-            {'l': 129, 't': to_str, 'n': 'title'},
-            {'l': 1, 't': to_str, 'n': 'media'},
-            {'l': 120, 't': to_str, 'n': 'abbreviation'},
-            {'l': 120, 't': to_str, 'n': 'author'},
-            {'l': 120, 't': to_str, 'n': 'publisher_year'},
-            {'l': 8, 't': to_int, 'n': 'archive_id'},
-            {'l': 9, 't': to_str, 'n': '??1'},
-            {'l': 80, 't': to_str, 'n': 'archive_access_number'},
-            {'l': 27, 't': to_str, 'n': '??'},
-            {'l': 9, 't': to_int, 'n': 'text_id'},
-            {'l': 1, 't': to_str, 'n': '??'},
-            {'l': 9, 't': to_int, 'n': 'info_id'},
-            {'l': 1, 't': to_str, 'n': '??2'},
-            {'l': 61, 't': to_str, 'n': '??3'},
-            *_modification_dates,
-            {'l': 1, 't': to_boolean, 'n': 'title_enabled'},
-            {'l': 1, 't': to_boolean, 'n': 'author_enabled'},
-            {'l': 1, 't': to_boolean, 'n': 'publisher_year_enabled'},
-            {'l': 1, 't': to_boolean, 'n': 'abbreviation_enabled'},
-            {'l': 1, 't': to_boolean, 'n': 'print_text'},
-            {'l': 1, 't': to_boolean, 'n': 'print_info'},
-            {'l': 1, 't': to_boolean, 'n': 'parenthesis'},
-            {'l': 1, 't': to_boolean, 'n': 'italics'},
-            {'l': 38, 't': to_str, 'n': '??'},
-            {'l': 8, 't': to_int, 'n': 'next_id'},
-            {'l': 8, 't': to_int, 'n': 'prev_id'},
-            {'l': 1, 't': asterisk, 'n': 'end_marker'},
-        ]
-    },
-    'citations': {
-        'fname': 'BKSourPT.dt7',
-        'def': [
-            {'l': 9, 't': to_int, 'n': 'id'},
-            {'l': 1, 't': to_int, 'n': 'ref_type'},
-            {'l': 9, 't': to_int, 'n': 'ref_id'},
-            {'l': 2, 't': to_int, 'n': 'type'},
-            {'l': 3, 't': to_int, 'n': 'seq_nr'},
-            {'l': 8, 't': to_int, 'n': 'source_id'},
-            {'l': 100, 't': to_str, 'n': 'descr'},
-            # 3 = date and location, 2 = location only, 1 = date only, empty = unspecified
-            {'l': 1, 't': to_int, 'n': 'range'},
-            {'l': 50, 't': to_int, 'n': 'unused?'},
-            {'l': 9, 't': to_int, 'n': 'text_id'},
-            {'l': 1, 't': to_int, 'n': 'unused1?'},
-            {'l': 9, 't': to_int, 'n': 'info_id'},
-            {'l': 1, 't': to_int, 'n': 'unused2?'},
-            {'l': 1, 't': to_int, 'n': 'quality'},
-            *_modification_dates,
-            {'l': 1, 't': to_boolean, 'n': 'text_enabled'},
-            {'l': 1, 't': to_boolean, 'n': 'info_enabled'},
-            {'l': 1, 't': to_boolean, 'n': 'descr_enabled'},
-            {'l': 27, 't': to_str, 'n': 'unused3?'},
-            {'l': 9, 't': to_int, 'n': 'next_id'},
-            {'l': 9, 't': to_int, 'n': 'prev_id'},
-            {'l': 1, 't': asterisk, 'n': 'end_marker'},
-        ]
-    },
-    'events': {
-        'fname': 'BKEvent.dt7',
-        'def': [
-            {'l': 9, 't': to_int, 'n': 'id'},
-            {'l': 1, 't': to_int, 'n': 'ref_type'},
-            {'l': 8, 't': to_int, 'n': 'ref_id'},
-            # type ref-type-specific sequence number shared with 'other' events
-            {'l': 3, 't': to_int, 'n': 'seq_nr'},
-            {'l': 3, 't': to_int, 'n': 'type'},
-            {'l': 2, 't': to_int, 'n': 'prepos'},
-            {'l': 20, 't': to_str, 'n': 'date1'},
-            {'l': 20, 't': to_str, 'n': 'date2'},
-            {'l': 8, 't': to_int, 'n': 'loc_id'},
-            # 1 = "event started date1 and ended date2", 2 = "event between date1 and date2", 0 or empty = on date1
-            {'l': 9, 't': to_int, 'n': 'date_type'},
-            # seems always empty
-            {'l': 30, 't': to_str, 'n': '??1'},
-            # for families: partner-specific event sequence number, shared with 'other' events?
-            {'l': 3, 't': to_int, 'n': 'partner1_seq_nr'},
-            {'l': 3, 't': to_int, 'n': 'partner2_seq_nr'},
-            # seems always empty
-            {'l': 6, 't': to_str, 'n': '??2'},
-            {'l': 18, 't': to_str, 'n': 'custom_name'},
-            {'l': 9, 't': to_int, 'n': 'next_id'},
-            {'l': 9, 't': to_int, 'n': 'prev_id'},
-            {'l': 1, 't': asterisk, 'n': 'end_marker'},
-        ]
-    },
-    'mail': {
-        'fname': 'BKMail.dt7',
-        'def': [
-            {'l': 8, 't': to_int, 'n': 'id'},
-            {'l': 1, 't': to_int, 'n': 'ref_type'},
-            {'l': 8, 't': to_str, 'n': 'ref_id'},
-            {'l': 3, 't': to_str, 'n': 'type'},
-            {'l': 30, 't': to_str, 'n': 'cs_surname_firstname'},
-            {'l': 60, 't': to_str, 'n': 'fullname'},
-            {'l': 60, 't': to_str, 'n': 'line1'},
-            {'l': 60, 't': to_str, 'n': 'line2'},
-            {'l': 60, 't': to_str, 'n': 'line3'},
-            {'l': 60, 't': to_str, 'n': 'line4'},
-            {'l': 60, 't': to_str, 'n': 'phone'},
-            {'l': 60, 't': to_str, 'n': 'fax'},
-            {'l': 60, 't': to_str, 'n': 'email'},
-            {'l': 60, 't': to_str, 'n': 'web'},
-            {'l': 60, 't': to_str, 'n': 'other'},
-            {'l': 1, 't': to_int, 'n': 'holiday_list'},
-            {'l': 1, 't': to_int, 'n': 'birthday_list'},
-            {'l': 1, 't': to_int, 'n': 'reunion_list'},
-            {'l': 1, 't': to_int, 'n': 'newsletter'},
-            {'l': 1, 't': to_int, 'n': 'other1_list'},
-            {'l': 1, 't': to_int, 'n': 'other2_list'},
-            {'l': 1, 't': to_int, 'n': 'other3_list'},
-            {'l': 1, 't': to_int, 'n': 'unused'},
-            {'l': 1, 't': to_int, 'n': 'unused'},
-            {'l': 1, 't': to_int, 'n': 'unused'},
-            {'l': 179, 't': to_str, 'n': 'unused1?'},
-            *_modification_dates,
-            {'l': 16, 't': to_str, 'n': 'unused2?'},
-            {'l': 8, 't': to_str, 'n': 'next_id'},
-            {'l': 8, 't': to_str, 'n': 'prev_id'},
-            {'l': 1, 't': asterisk, 'n': 'end_marker'},
-        ]
-    }
-}
+
+def _parse(s, grammar):
+    pos = accumulate(grammar, lambda t, f: t + f.len, initial=0)
+    return {f.name: f.fn(s[n:n+f.len]) for f, n in zip(grammar, pos)}
+
+
+class FileParser(dict):
+
+    def read(self, dir, *args):
+        for r in self.rows(dir):
+            self[r['id']] = self.convert(r, *args)
+        return self
+
+    # TODO this fails if end of lines or incorrectly mixed up as \x0d \x0d \x0a for example
+    # seems to work in most cases but for some reasons sometimes an extra \x0a ends up in some files
+    def rows(self, dir):
+        with open(join(dir, self.fname)) as f:
+            lines = f.readlines()
+        n = 0
+        while n < len(lines):
+            bkline = lines[n]
+            n += 1
+            while bkline[-2] != "*":
+                bkline += '\n' + lines[n]
+                n += 1
+            yield _parse(bkline, self.grammar)
+
+
+class Parser():
+    def read(self, s, n, ref, **kwargs):
+        return self.handle(_parse(s, self.grammar), n, ref, **kwargs)
+
+
+class Notes(FileParser):
+    fname = 'BKMessg.dt7'
+    grammar = [
+        Field('id', 9, to_int),
+        Field('ref_type', 1, to_str),
+        # 0 = person, 1 = family, 3 = source information, 5 = event, ...
+        Field('ref_id', 9, to_int),
+        Field('seq_nr', 3, to_int),
+        Field('??1', 9, to_int),
+        *_modification_dates,
+        Field('??2', 14, to_int),
+        Field('next_seq_id', 9, to_int),
+        Field('next_id', 9, to_int),
+        Field('prev_id', 9, to_int),
+        Field('start_marker', 1, asterisk),
+        Field('text', 1200, to_str),
+        Field('end_marker', 1, asterisk),
+    ]
+
+    def convert(self, r):
+        return r
+
+    def read(self, dir):
+        messages = {r['id']: r for r in self.rows(dir)}
+        for (id, m) in messages.items():
+             if m['seq_nr'] == 1:
+                self[id] = self.note(messages, id)
+        return self
+
+    @classmethod
+    def note(cls, messages, id):
+        s = ''
+        while id > 0:
+            m = messages[id]
+            s, id = s + m['text'], m['next_seq_id']
+        return IntNote(s.replace('\x12\x13', '\n'))
+
+
+class Locations(FileParser):
+    fname = 'BKLocate.dt7'
+    grammar = [
+        Field('id', 8, to_int),
+        Field('name', 120, to_str),
+        Field('short_name', 41, to_str),
+        Field('city', 40, to_str),
+        Field('township', 40, to_str),
+        Field('county', 40, to_str),
+        Field('state_or_province', 40, to_str),
+        Field('country', 40, to_str),
+        Field('ref_id??', 8, to_int),
+        Field('latitude', 15, to_str),
+        Field('longitude', 15, to_str),
+        Field('other_id', 8, to_int),
+        Field('next_id', 8, to_int),
+        Field('prev_id', 8, to_int),
+        Field('end_marker', 1, asterisk),
+    ]
+
+    def convert(self, r):
+        return Location(r['name'], r['city'], r['township'], r['county'],
+                        r['state_or_province'], r['country'], r['latitude'], r['longitude'])
+
+
+class Sources(FileParser):
+    fname = 'BKSource.dt7'
+    grammar = [
+        Field('id', 8, to_int),
+        Field('title', 129, to_str),
+        Field('media', 1, to_str),
+        Field('abbreviation', 120, to_str),
+        Field('author', 120, to_str),
+        Field('publisher_year', 120, to_str),
+        Field('archive_id', 8, to_int),
+        Field('??1', 9, to_str),
+        Field('archive_access_number', 80, to_str),
+        Field('??', 27, to_str),
+        Field('text_id', 9, to_int),
+        Field('??', 1, to_str),
+        Field('info_id', 9, to_int),
+        Field('??2', 1, to_str),
+        Field('??3', 61, to_str),
+        *_modification_dates,
+        Field('title_enabled', 1, to_boolean),
+        Field('author_enabled', 1, to_boolean),
+        Field('publisher_year_enabled', 1, to_boolean),
+        Field('abbreviation_enabled', 1, to_boolean),
+        Field('print_text', 1, to_boolean),
+        Field('print_info', 1, to_boolean),
+        Field('parenthesis', 1, to_boolean),
+        Field('italics', 1, to_boolean),
+        Field('??', 38, to_str),
+        Field('next_id', 8, to_int),
+        Field('prev_id', 8, to_int),
+        Field('end_marker', 1, asterisk),
+    ]
+
+    def convert(self, r, notes):
+        return Source(r['title'], notes.get(r['text_id']), notes.get(r['info_id']))
+
+
+class Citations(FileParser):
+    fname = 'BKSourPT.dt7'
+    grammar = [
+        Field('id', 9, to_int),
+        Field('ref_type', 1, to_int),
+        Field('ref_id', 9, to_int),
+        Field('type', 2, to_int),
+        Field('seq_nr', 3, to_int),
+        Field('source_id', 8, to_int),
+        Field('descr', 100, to_str),
+        # 3 = date and location, 2 = location only, 1 = date only, empty = unspecified
+        Field('range', 1, to_int),
+        Field('unused?', 50, to_int),
+        Field('text_id', 9, to_int),
+        Field('unused1?', 1, to_int),
+        Field('info_id', 9, to_int),
+        Field('unused2?', 1, to_int),
+        Field('quality', 1, to_int),
+        *_modification_dates,
+        Field('text_enabled', 1, to_boolean),
+        Field('info_enabled', 1, to_boolean),
+        Field('descr_enabled', 1, to_boolean),
+        Field('unused3?', 27, to_str),
+        Field('next_id', 9, to_int),
+        Field('prev_id', 9, to_int),
+        Field('end_marker', 1, asterisk),
+    ]
+
+    def convert(self, r, notes):
+        return Citation(r['descr'], notes.get(r['text_id']), notes.get(r['info_id']))
+
+    def rows(self, dir):
+        self.list = super().rows(dir)
+        return self.list
+
+    def resolve(self, persons, families, events, others):
+        refs = [persons, families, events, others,
+                others, others, others, persons, others, others]
+        for c in self.list:
+            if c['ref_id'] > 0:
+                t = [c['ref_type'], c['type']]
+                ref = refs[t[0]][c['ref_id']]
+                if t == [7, 0]:
+                    list = ref.child_citations
+                elif t == [0, 1]:
+                    list = ref.name_citations
+                else:
+                    list = ref.citations
+                list[c['seq_nr']] = self[c['id']]
+        self.list = None
+
+
+class Persons(FileParser):
+    fname = 'BKPerson.dt7'
+    grammar = [
+        Field('id', 8, to_int),
+        Field('surname_prefix_5caps', 5, to_str),
+        Field('firstname_prefix_5caps', 5, to_str),
+        Field('fullname', 140, to_str),
+        Field('surname_prefix_10caps', 10, to_str),
+        Field('firstname_prefix_10caps', 10, to_str),
+        Field('??', 40, to_str),
+        Field('prefix', 40, to_str),
+        Field('postfix', 40, to_str),
+        Field('firstname', 40, to_str),
+        Field('surname', 40, to_str),
+        Field('sortingname', 40, to_str),
+        Field('title', 50, to_str),
+        Field('sexe', 2, to_int),
+        Field('family_id1?', 8, to_int),
+        Field('family_id2?', 8, to_int),
+        Field('??', 8, to_str),
+        Field('??', 8, to_str),
+        Field('parent_types1', 1, to_str),
+        Field('parent_types2', 1, to_str),
+        Field('??', 8, to_int),
+        *_modification_dates,
+        Field('empty?', 8, to_str),
+        Field('privacy', 1, to_int),
+        Field('unclear?', 76, to_str),
+        Field('groups', 10, to_str),
+        Field('??2', 31, to_str),
+        Field('find_a_grave', 12, to_str),
+        Field('i1', 8, to_int),
+        Field('i2', 8, to_int),
+        Field('i3', 8, to_int),
+        Field('i4', 8, to_int),
+        Field('i5', 8, to_int),
+        Field('i6', 8, to_int),
+        Field('i7', 8, to_int),
+        Field('i8', 8, to_int),
+        Field('end_marker', 1, asterisk),
+    ]
+
+    def convert(self, r):
+        return Person(r['id'], sexe_type_map[r['sexe']], r['fullname'], r['firstname'], r['surname'], r['sortingname'], r['title'], privacy_type_map[r['privacy']])
+
+
+class Families(FileParser):
+    fname = 'BKMarr.dt7'
+    grammar = [
+        Field('id', 8, to_int),
+        Field('partner1_id', 8, to_int),
+        Field('partner1_seq_nr', 3, to_int),
+        Field('partner2_id', 8, to_int),
+        Field('partner2_seq_nr', 3, to_int),
+        Field('unused?', 4, to_str),
+        Field('children', 608, to_ids),
+        *_modification_dates,
+        Field('??', 107, to_str),
+        Field('next_id', 8, to_int),
+        Field('next2_id', 8, to_int),
+        Field('prev_id', 8, to_int),
+        Field('prev2_id', 8, to_int),
+        Field('end_marker', 1, asterisk),
+    ]
+
+    def convert(self, r, persons):
+        partners = [persons.get(r[p]) for p in ['partner1_id', 'partner2_id']]
+        children = [persons[id] for id in r['children']]
+        family = Family(partners, children)
+        for partner, p in zip(partners, ['partner1_seq_nr', 'partner2_seq_nr']):
+            if partner:
+                partner.families[r[p]] = family
+        return family
+
+
+class Addresses(FileParser):
+    fname = 'BKMail.dt7'
+    grammar = [
+        Field('id', 8, to_int),
+        Field('ref_type', 1, to_int),
+        Field('ref_id', 8, to_str),
+        Field('type', 3, to_str),
+        Field('cs_surname_firstname', 30, to_str),
+        Field('fullname', 60, to_str),
+        Field('line1', 60, to_str),
+        Field('line2', 60, to_str),
+        Field('line3', 60, to_str),
+        Field('line4', 60, to_str),
+        Field('phone', 60, to_str),
+        Field('fax', 60, to_str),
+        Field('email', 60, to_str),
+        Field('web', 60, to_str),
+        Field('other', 60, to_str),
+        Field('holiday_list', 1, to_int),
+        Field('birthday_list', 1, to_int),
+        Field('reunion_list', 1, to_int),
+        Field('newsletter', 1, to_int),
+        Field('other1_list', 1, to_int),
+        Field('other2_list', 1, to_int),
+        Field('other3_list', 1, to_int),
+        Field('unused', 1, to_int),
+        Field('unused', 1, to_int),
+        Field('unused', 1, to_int),
+        Field('unused1?', 179, to_str),
+        *_modification_dates,
+        Field('unused2?', 16, to_str),
+        Field('next_id', 8, to_str),
+        Field('prev_id', 8, to_str),
+        Field('end_marker', 1, asterisk),
+    ]
+
+    def convert(self, r, persons, families, repos):
+        address = Address(r['fullname'], r['line1'], r['line2'], r['line3'],
+                          r['line4'], r['phone'], r['fax'], r['email'], r['web'])
+        type, id = r['ref_type'], r['ref_id']
+        if type < 0:  # skip REUSE lines
+            return
+        if type < 2:
+            [persons, families][type][int(id)].address = address
+        else:
+            repos[id] = address
+        return address
+
+
+class Events(FileParser):
+    fname = 'BKEvent.dt7'
+    grammar = [
+        Field('id', 9, to_int),
+        Field('ref_type', 1, to_int),
+        Field('ref_id', 8, to_int),
+        # type ref-type-specific sequence number shared with 'other' events
+        Field('seq_nr', 3, to_int),
+        Field('type', 3, to_int),
+        Field('prepos', 2, to_int),
+        Field('date1', 20, to_str),
+        Field('date2', 20, to_str),
+        Field('loc_id', 8, to_int),
+        # 1 = "event started date1 and ended date2", 2 = "event between date1 and date2", 0 or empty = on date1
+        Field('date_type', 9, to_int),
+        # seems always empty
+        Field('??1', 30, to_str),
+        # for families: partner-specific event sequence number, shared with 'other' events?
+        Field('partner1_seq_nr', 3, to_int),
+        Field('partner2_seq_nr', 3, to_int),
+        # seems always empty
+        Field('??2', 6, to_str),
+        Field('custom_name', 18, to_str),
+        Field('next_id', 9, to_int),
+        Field('prev_id', 9, to_int),
+        Field('end_marker', 1, asterisk),
+    ]
+
+    def convert(self, r, persons, families, locations):
+        refs = [persons, families]
+        if r['ref_id'] > 0:  # skip reuse events
+            loc = locations.get(r['loc_id'])
+            name = r['custom_name']
+            event = Event(
+                name if name else event_type_map[r['type']], _date(r), r['prepos'], loc)
+            ref = refs[r['ref_type']][r['ref_id']]
+            ref.events[r['seq_nr']] = event
+            return event
+
+
+class Facts(Parser):
+    grammar = [
+        Field('type', 3, to_int),
+        Field('space', 1, to_str),
+        Field('descr', 150, to_str),
+        Field('date1', 20, to_str),
+        Field('date2', 20, to_str),
+        # 1 = "event started date1 and ended date 2", 2 = "event between date1 and date2", 0 or empty = on date1
+        Field('date_type', 1, to_str),
+        Field('unused1?', 123, to_str),
+        Field('custom_name', 18, to_str),
+        Field('unused2?', 30, to_str),
+    ]
+
+    def handle(self, r, n, ref, **kwargs):
+        name = r['custom_name']
+        fact = Fact(
+            name if name else event_type_map[r['type']], _date(r), r['descr'])
+        ref.events[n] = fact
+        return fact
+
+
+class Names(Parser):
+    grammar = [
+        Field('type', 3, to_int),
+        Field('space', 1, to_str),
+        Field('text', 150, to_str),
+        Field('date1', 20, to_str),
+        Field('date2', 20, to_str),
+        # 1 = "event started date1 and ended date 2", 2 = "event between date1 and date2", 0 or empty = on date1
+        Field('date_type', 1, to_str),
+        Field('unused1?', 11, to_str),
+        Field('print_where', 3, to_int),
+        Field('unused2?', 157, to_str),
+    ]
+
+    def handle(self, r, n, ref, **kwargs):
+        name = Name(name_type_map[r['type']], r['text'], _date(r))
+        ref.names[n] = name
+        return name
+
+
+class Note(Parser):
+    grammar = [
+        Field('path', 206, to_str),
+        Field('print_where', 3, to_int),
+        Field('unused1?', 100, to_str),
+        Field('msg_id', 9, to_int),
+        Field('unused2?', 48, to_str),
+    ]
+
+    def handle(self, r, n, ref, notes, **kwargs):
+        note = notes.get(r['msg_id'], ExtNote(r['path']))
+        ref.notes[n] = note
+        return note
+
+
+class Images(Parser):
+    grammar = [
+        Field('space', 4, to_str),
+        Field('path', 150, to_str),
+        Field('unused1?', 47, to_str),
+        Field('dimensions', 2, to_str),
+        Field('unused2?', 3, to_str),
+        Field('print_where', 3, to_str),
+        Field('descr', 100, to_str),
+        Field('unused2?', 57, to_str),
+    ]
+
+    def handle(self, r, n, ref, **kwargs):
+        image = Image(r['path'], r['descr'], r['dimensions'], r['print_where'])
+        ref.images[n] = image
+        return image
+
+
+class Todos(Parser):
+    grammar = [
+        Field('unused1?', 2, to_int),
+        Field('type', 1, to_str),
+        Field('space', 1, to_str),
+        Field('descr', 150, to_str),
+        Field('date1', 20, to_str),
+        Field('date2', 20, to_str),
+        # 1 = "event started date1 and ended date 2", 2 = "event between date1 and date2", 0 or empty = on date1
+        Field('date_type', 1, to_str),
+        Field('status', 1, to_str),
+        Field('other_flags?', 8, to_str),
+        Field('prio', 1, to_str),
+        Field('other_flags?', 4, to_str),
+        Field('loc_id', 8, to_int),
+        Field('arch_id', 8, to_int),
+        Field('unused2?', 85, to_str),
+        Field('text_id', 8, to_int),
+        Field('unused3?', 48, to_str),
+    ]
+
+    def handle(self, r, n, ref, locations, addresses, notes, **kwargs):
+        loc = locations.get(r['loc_id'])
+        arch = addresses.get(r['arch_id'])
+        text = notes.get(r['text_id'])
+        type = todo_type_map.get(r['type'])
+        status = todo_status_map.get(r['status'])
+        todo = Todo(_date(r), type, status,
+                    r['prio'], loc, arch, r['descr'], text)
+        ref.todos[n] = todo
+        return todo
+
+
+class Witnesses(Parser):
+    grammar = [
+        Field('type', 1, to_int),
+        Field('unused1?', 4, to_int),
+        Field('person_id', 8, to_int),
+        Field('unused2?', 196, to_str),
+        Field('extra_type', 100, to_str),
+        Field('unused3?', 57, to_str),
+    ]
+
+    def handle(self, r, n, ref, persons, **kwargs):
+        person = persons[r['person_id']]
+        if r['type'] == -1:
+            print(
+                f'WARNING:no explicit witness type defined for person #{r["person_id"]}')
+            r['type'] = 0
+        witness = Witness(
+            person, witness_type_map[r['type']], r['extra_type'])
+        ref.witnesses[n] = witness
+        return witness
+
+
+class Files(Parser):
+    grammar = [
+        Field('space', 4, to_str),
+        Field('path', 150, to_str),
+        Field('unused1?', 52, to_str),
+        Field('unused2?', 3, to_int),
+        Field('descr', 100, to_str),
+        Field('unused3', 57, to_str),
+    ]
+
+    def handle(self, r, n, ref, **kwargs):
+        file = File(r['path'], r['descr'])
+        ref.files[n] = file
+        return file
+
+
+class Medias(Files):
+    def handle(self, r, n, ref, **kwargs):
+        media = Media(r['path'], r['descr'])
+        ref.media[n] = media
+        return media
+
+
+class LocationData(Parser):
+    grammar = [
+        Field('space', 4, to_str),
+        Field('farm_or_manor_name', 40, to_str),
+        Field('parish', 40, to_str),
+        Field('postal_address', 125, to_str),
+        Field('resident_id', 25, to_str),
+        Field('residence_number', 25, to_str),
+        Field('farm_number', 25, to_str),
+        Field('property_number', 25, to_str),
+        Field('unused?', 57, to_str),
+    ]
+
+    def handle(self, r, n, ref, **kwargs):
+        ref.farm_or_manor_name = r['farm_or_manor_name']
+        ref.parish = r['parish']
+        ref.postal_address = r['postal_address']
+        ref.resident_id = r['resident_id']
+        ref.residence_number = r['residence_number']
+        ref.farm_number = r['farm_number']
+        ref.property_number = r['property_number']
+        return ref
+
+
+class Others(FileParser):
+    fname = 'BKOther.dt7'
+    grammar = [
+        Field('id', 9, to_int),
+        Field('ref_type', 1, to_int),
+        Field('ref_id', 9, to_int),
+        Field('type', 1, to_int),
+        Field('seq_nr', 3, to_int),
+        Field('payload', 366, lambda s: s),
+        Field('next_id', 9, to_int),
+        Field('prev_id', 9, to_int),
+        Field('end_marker', 1, asterisk),
+    ]
+
+    def convert(self, o, persons, families, events, sources, citations, locations, notes, addresses):
+        ref_id = o['ref_id']
+        t = [o['ref_type'], o['type']]
+        if ref_id > 0:  # skip reuse events
+            if t in [[0, 0], [1, 0]]:
+                handler = Facts
+            elif t in [[0, 1]]:
+                handler = Names
+            elif t in [[0, 2], [1, 2], [2, 0], [5, 0], [6, 0], [7, 0], [8, 0], [9, 0]]:
+                handler = Note
+            elif t in [[0, 4], [1, 4]]:
+                handler = Images
+            elif t in [[0, 7], [1, 7]]:
+                handler = Medias
+            elif t in [[0, 8], [1, 8]]:
+                handler = Todos
+            elif t in [[3, 0], [4, 0]]:
+                handler = Witnesses
+            elif t in [[8, 4], [8, 5], [9, 4]]:
+                handler = Files
+            elif t in [[9, 9]]:
+                handler = LocationData
+            else:
+                raise Exception(f"Type combination {t} not implemented")
+            refs = [persons, families, self, events, self, events, self, self, [
+                self, None, None, None, sources, citations, None, None, None, None][t[1]], locations][t[0]]
+            return handler().read(o['payload'], o['seq_nr'], refs[ref_id], persons=persons, locations=locations, addresses=addresses, notes=notes)
+
+
+# Reading order is determined as follows:
+# - locations has to go before events, others
+# - sources has to go before citations
+# - citations has to go before others
+# - persons have to go before families, adresses, events, others, citations
+# - families has to go before adresses, events, others, citations
+# - addresses have to go before others
+# - events have to go before others, citations
+# - others have to go before citations
+#
+# The only cycle in here is others -> citations -> others
+# A "read as late as possible" strategy leads to the following order:
+#  persons, families, locations, events, sources, citations, addresses, others
+# Citation references will he resolved as a separate step in the end.
+def read(dir):
+    g = Genealogy()
+    g.notes = Notes().read(dir)
+    g.locations = Locations().read(dir)
+    g.sources = Sources().read(dir, g.notes)
+    g.citations = Citations().read(dir, g.notes)
+    g.persons = Persons().read(dir)
+    g.families = Families().read(dir, g.persons)
+    g.repositories = {}
+    g.addresses = Addresses().read(dir, g.persons, g.families, g.repositories)
+    g.events = Events().read(dir, g.persons, g.families, g.locations)
+    g.others = Others().read(dir, g.persons, g.families, g.events, g.sources,
+                                    g.citations, g.locations, g.notes, g.addresses)
+    g.citations.resolve(g.persons, g.families, g.events, g.others)
+    return g

@@ -1,4 +1,4 @@
-from enum import Enum, unique
+from enums import EventType
 
 
 class Collection(dict):
@@ -7,11 +7,11 @@ class Collection(dict):
 
     def __str__(self) -> str:
         lines = '\n'.join(str(l) for l in self.values())
-        return f'\n{self.name}:\n{lines}\n' if lines else f'(No {self.name})'
+        return f'\n{self.name}:\n{lines}\n' if lines else f'\n(No {self.name})'
 
 
 class EventBase:
-    def __init__(self, type, date):
+    def __init__(self, type: EventType, date):
         self.type = type
         self.date = date
         self.notes = Collection('Notes')
@@ -61,11 +61,11 @@ class Witness:
         self.citations = Collection('Citations')
 
     def __str__(self) -> str:
-        return f'{self.person.fullname} {self.role} {self.extra_type if self.extra_type else ""}'
+        return f'{self.person.fullname} {self.type} {self.extra_type if self.extra_type else ""}'
 
 
 class Person:
-    def __init__(self, id, sexe, fullname, firstname, surname, sortingname, title, privacy):
+    def __init__(self, id, sexe, fullname, firstname, surname, sortingname, title, privacy, address=None):
         self.id = id
         self.sexe = sexe
         self.fullname = fullname
@@ -74,6 +74,7 @@ class Person:
         self.sortingname = sortingname
         self.title = title
         self.privacy = privacy
+        self.address = address
         self.families = Collection("Families")
         self.notes = Collection("Notes")
         self.events = Collection("Events and Facts")
@@ -86,13 +87,14 @@ class Person:
         self.child_citations = Collection("Child citations")
 
     def __str__(self) -> str:
-        return f'Full name: {self.fullname}\nSexe: {self.sexe}{self.families}{self.events}{self.names}{self.notes}'
+        return f'Full name: {self.fullname}\nSexe: {self.sexe}{self.families}{self.events}{self.names}{self.notes}{self.images}{self.media}{self.citations}{self.name_citations}{self.child_citations}{self.todos}'
 
 
 class Family:
-    def __init__(self, partners, children):
+    def __init__(self, partners, children, address = None):
         self.partners = partners
         self.children = children
+        self.address = address
         self.notes = Collection("Notes")
         self.events = Collection("Events")
         self.media = Collection("Media")
@@ -101,7 +103,7 @@ class Family:
 
     def __str__(self) -> str:
         fn = map(lambda p: p.fullname if p else "(empty)", self.partners)
-        return ' x '.join(fn) + f'{self.events}{self.notes}'
+        return ' x '.join(fn) + f'{self.events}{self.notes}{self.images}{self.media}{self.citations}'
 
 
 class Note:
@@ -226,148 +228,5 @@ class Address:
         self.email = email
 
 
-class StrEnum(Enum):
-    def __init__(self, descr):
-        self.descr = descr
-
-    def __str__(self):
-        return self.descr
-
-
-class PrivacyTypes(StrEnum):
-    CLEAR = "No privacy settings"
-    NAME_ONLY_DETAILS_BLANK = "Show name only, details blank"
-    NAME_ONLY_DETAILS_PRIVATE = "Show name only, details 'private'"
-    ALL_PRIVATE = "Show 'private' instead of name, details private"
-    HIDE_PERSON = "Do not show that this person exists"
-
-
-class WitnessTypes(StrEnum):
-    WITNESS = "witness"
-    GODPARENT = "godparent"
-    SPONSOR = "sponsor"
-    LEGAL_WITNESS = "legal witness"
-    INFORMANT = "informant"
-    PERSON_OF_HONOR = "best man/maid of honor"
-    OTHER = 'other'
-
-
-class NameTypes(StrEnum):
-    ALSO_KNOWN_AS = 'Also known as'
-    NICK = 'Nickname'
-    SHORT = 'Short name'
-    ADOPTED = 'Adopted name'
-    HEBREW = 'Hebrew name'
-    CENSUS = 'Census'
-    MARIIED = 'Married name'
-    GERMAN = 'German name'
-    FARM = 'Farm name'
-    BIRTH = 'Birth name'
-    INDIAN = 'Indian name'
-    FORMAL = 'Formal name'
-    CURRENT = 'Current name'
-    SOLDIER = 'Soldier name'
-    FORMERLY_KNOWN_AS = 'Formerly known as'
-    RELIGIOUS = 'Religious name'
-    CALLED = 'Called'
-    INDIGENOUS = 'Indigenous name'
-    TOMBSTONE = 'Tombstone name'
-    OTHER = 'Other name'
-
-
-class EventTypes(StrEnum):
-    BORN = 'Born'
-    BAPTIZED = 'Baptized'
-    CHRISTENED = 'Christened'
-    DIED = 'Died'
-    BURRIED = 'Burried'
-    CREMATED = 'Cremated'
-    ADOPTED_BY_BOTH = 'Adopted by both'
-    ADOPTED_BY_FATHER = 'Adopted by father'
-    ADOPTED_BY_MOTHER = 'Adopted by mother'
-    BAPTIZED_LDS = 'Baptized LDS'
-    BAR_MITZVAH = 'Bar Mitzvah'
-    BLESSING = 'Blessing'
-    BRIT_MILAH = 'Brit Milah'
-    CENSUS = 'Census'
-    CHRISTENED_ADULT = 'Christened (adult)'
-    CONFIRMATION = 'Confirmation'
-    CONFIRMATION_LDS = 'Confirmation LDS'
-    EMIGRATED = 'Emigrated'
-    ENDOWMENT_LDS = 'Endowment LDS'
-    EVENT = 'Event'
-    FIRST_COMMUNION = 'First Communion'
-    FUNERAL = 'Funeral'
-    GRADUATED = 'Graduated'
-    IMIGRATED = 'Immigrated'
-    INTERRED = 'Interred'
-    NATURALIZED = 'Naturalized'
-    ORDNINATION = 'Ordination'
-    PROBATE = 'Probate'
-    RETIREMENT = 'Retirement'
-    RESIDED = 'Resided'
-    SEALED_CHILD_LDS = 'Sealed child LDS'
-    WILL_SIGNED = 'Will signed'
-    VARTZEIT = 'Yartzeit'
-    VERIFY_HOME_CHRISTENING = 'Verify home christening'
-    CHURCHING_OF_WOMAN = 'Churching of woman'
-    MEMORIAL_SERVICE = 'Memorial serivce'
-    NOT_LIVING = 'Not living'
-    NEVER_MARRIED = 'Never married'
-    NO_CHILDREN_FROM_PERSON = 'No children from this person'
-    OCCUPATION = 'Occupation'
-    MILITARY = 'Military'
-    RELIGION = 'Religion'
-    EDUCATION = 'Education'
-    NATIONALITY = 'Nationality'
-    CASTE = 'Caste'
-    REF_NUMBER = 'Ref number'
-    AFN_NUMER = 'AFN number'
-    SOCIAL_SECURITY_NUMBER = 'Social Security Number'
-    PERMANENT_NUMBER = 'Permanent number'
-    ID_NUMBER = 'ID number'
-    Y_DNA = 'Y-DNA'
-    MT_DNA = 'mtDNA'
-    AT_DNA = 'atDNA'
-    LEGAL_NAME_CHANGE = 'Legal name change'
-    HEIGHT = 'Height'
-    WEIGHT = 'Weight'
-    EYE_COLOR = 'Eye color'
-    HAIR_COLOR = 'Hair color'
-    DESCRIPTION = 'Description'
-    PROPERTY = 'Property'
-    MEDICAL_CONDITION = 'Medical condition'
-    CAUSE_OF_DEATH = 'Cause of death'
-    NUMBER_OF_CHILDREN_PERSON = 'Number of children (person)'
-    ANCESTOR_INTEREST = 'Ancestor interest'
-    DESCENDANT_INTEREST = 'Descendant interest'
-    MARRIED = 'Married'
-    MARRIED_CIVIL = 'Married (civil)'
-    MARRIED_RELIGIOUS = 'Married (religious)'
-    DIVORCED = 'Divorced'
-    MARRIED_BANN = 'Married Bann'
-    MARRIAGE_BOND = 'Marriage Bond'
-    MARRIAGE_CONTRACT = 'Marriage contract'
-    MARRIAGE_LICENSE = 'Marriage license'
-    MARRIAGE_SETTLEMENT = 'Marriage settlement'
-    MARRIAGE_INTENTION = 'Marriage intention'
-    DIVORCE_FILED = 'Divorce filed'
-    SEPARATED = 'Separated'
-    ANULLED = 'Annulled'
-    ENGAGED = 'Engaged'
-    SEALED_TO_SPOUSE_LDS = 'Sealed to spouse LDS'
-    RESIDED_FAMILY = 'Resided (family)'
-    EVENT_FAMILY = 'Event (family)'
-    CENSUS_FAMILY = 'Census (family)'
-    NOT_MARRIED = 'Not married'
-    COMMON_LAW = 'Common law'
-    NO_CHILDREN_FROM_THIS_MARRIAGE = 'No children from this marriage'
-    NUMBER_OF_CHILDREN_FAMILY = 'Number of Children (family)'
-    MARRIAGE_ID = 'Marriage ID number'
-    MARRIAGE_REF = 'Marriage Reference number'
-
-
-class Sexe(StrEnum):
-    MAN = "Man"
-    WOMAN = "Woman"
-    UNKNOWN = "Unknown"
+class Genealogy:
+    pass

@@ -24,7 +24,6 @@ class FromToDate(DateRange):
 class BetweenDates(DateRange):
     f = ['between', 'and']
 
-
 def create_date(s1, s2, type):
     # date1 = datetime.strptime("%y%m%d", d1) if d1 != '' else None
 
@@ -36,3 +35,5 @@ def create_date(s1, s2, type):
 
     if type == 2:
         return BetweenDates(s1, s2)
+
+
