@@ -138,7 +138,25 @@ class EventType(StrEnum):
     MARRIAGE_REF = 'Marriage Reference number'
 
     def is_baptization(self):
-        return self in [EventType.BAPTIZED, EventType.BAPTIZED_LDS, EventType.CHRISTENED, EventType.CHRISTENED_ADULT]
+        return self in [
+            EventType.BAPTIZED,
+            EventType.BAPTIZED_LDS,
+            EventType.CHRISTENED,
+            EventType.CHRISTENED_ADULT
+        ]
+
+    def is_marriage(self):
+        return self in [
+            EventType.MARRIAGE_BOND,
+            EventType.MARRIAGE_CONTRACT,
+            EventType.MARRIAGE_INTENTION,
+            EventType.MARRIAGE_SETTLEMENT,
+            EventType.MARRIED,
+            EventType.MARRIED_BANN,
+            EventType.MARRIED_CIVIL,
+            EventType.MARRIED_RELIGIOUS
+        ]
+
 
 class Sexe(StrEnum):
     MAN = "Man"

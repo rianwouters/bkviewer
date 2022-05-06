@@ -1,0 +1,293 @@
+
+@startuml
+
+class BKObject {
+    id: int
+    next_id: int
+    prev_id: int
+    end_marker: asterisk
+}
+
+class VersionedBKObject {
+    date_added: date
+    date_added_metadata: int
+    date_modified: date
+    date_modified_metadata: int
+}
+
+VersionedBKObject --|> BKObject
+
+class Message {
+    ref_type: enum
+    ref_id: int
+    seq_nr: int
+    text: str
+}
+
+Message "next_seq_id" --> Message
+Message --|> VersionedBKObject
+
+class Location {
+    name: str
+    short_name: str
+    city: str
+    township: str
+    county: str
+    state_or_province: str
+    country: str
+    ref_id??: int
+    latitude: str
+    longitude: str
+}
+
+Location "loc_data_id" --> LocationData
+
+
+class Other {
+    seq_nr: int
+}
+
+Other -|>BKObject
+
+class Fact {
+    descr: str
+    date1: str
+    date2: str
+    date_type: enum
+    custom_name: str
+}
+
+Fact --|> Other
+Fact "ref_id" --> Person: "ref_type = 0\ntype = 0"
+Fact "ref_id" --> Family: "ref_type = 1\ntype = 0"
+
+class Name {
+    type:   enum
+    text: str
+    date1: str
+    date2: str
+    date_type: enum
+    print_where: int
+}
+
+Name --|> Other
+Name "ref_id" --> Person : "ref_type = 0\ntype = 1"
+
+class Note {
+    ref_type: int
+    ref_id: int
+    print_where: str
+}
+
+Note --|> Other
+Note "ref_id" --> Person: "ref_type = 0\ntype = 2"
+Note "ref_id" --> Family: "ref_type = 1\ntype = 2"
+Note "ref_id" --> Image: "ref_type = 2\ntype = 0"
+Note "ref_id" --> Event: "ref_type = 5\ntype = 0"
+Note "ref_id" --> Fact: "ref_type = 6\ntype = 0"
+Note "ref_id" --> Citation: "ref_type = 7\ntype = 0"
+Note "ref_id" --> Source: "ref_type = 8\ntype = 0"
+Note "ref_id" --> Location: "ref_type = 9\ntype = 0"
+
+class Image {
+    path: str
+    dimensions: str
+    print_where: str
+    descr: str
+}
+
+Image --|> Other
+Image "ref_id" --> Person : "ref_type = 0\ntype = 4"
+Image "ref_id" --> Family : "ref_type = 1\ntype = 4"
+
+class Media {
+}
+
+Media--|> File
+Media "ref_id" --> Person : "ref_type = 0\ntype = 7"
+Media "ref_id" --> Family : "ref_type = 1\ntype = 7"
+
+class Todo {
+    type: str
+    descr: str
+    date1: str
+    date2: str
+    date_type: str
+    status: enum
+    other_flags: str
+    prio: str
+}
+
+Todo--|> Other
+Todo "ref_id" --> Person : "ref_type = 0\ntype = 8"
+Todo "ref_id" --> Family : "ref_type = 1\ntype = 8"
+Todo "loc_id" --> Location
+Todo "repo_id" --> Address
+Todo "text_id" --> Message
+
+class Witness {
+    type: int
+    extra_type: int
+}
+
+Todo "person_id" --> Person
+
+
+Witness--|> Other
+Witness "ref_id" --> Event : "ref_type = 3\ntype = 0"
+Witness "ref_id" --> Fact : "ref_type = 4\ntype = 0"
+
+class "File" {
+    path: str
+    descr: str
+}
+
+"File" --|> Other
+"File" "ref_id" --> Source : "ref_type = 8\ntype = 4"
+"File" "ref_id" --> Citation : "ref_type = 8\ntype = 5"
+"File" "ref_id" --> Location : "ref_type = 9\ntype = 4"
+
+class LocationData {
+    farm_or_manor_name: str
+    parish: str
+    postal_address: str
+    resident_id: str
+    residence_number: str
+    farm_number: str
+    property_number: str
+}
+
+LocationData --|> Other: "ref_type = 9\ntype = 9"
+LocationData "ref_id" --> Location
+
+class InternalNote {
+}
+
+InternalNote --|> Note
+InternalNote "msg_id" --> Message
+
+class ExternalNote {
+    path: str
+    print_where: str
+}
+
+ExternalNote --|> Note
+
+
+
+class Address {
+    ref_type: int
+    type: str
+    cs_surname_firstname: str
+    fullname: str
+    lines: str[4]
+    phone: str
+    fax: str
+    email: str
+    web: str
+    other: str
+    holiday_list: str
+    birthday_list: str
+    reunion_list: str
+    newsletter: str
+    other1_list: str
+    other2_list: str
+    other3_list: str
+}
+
+Address --|> VersionedBKObject
+Address --> Person: "ref_type == 0"
+Address --> Person: "ref_type == 1"
+
+class Source {
+    title: str
+    media: str
+    abbreviation: str
+    author: str
+    publisher_year: str
+    archive_access_number: str
+    title_enabled: boolean
+    author_enabled: boolean
+    publisher_year_enabled: boolean
+    abbreviation_enabled: boolean
+    print_text: boolean
+    print_info: boolean
+    parenthesis: boolean
+    italics: boolean
+}
+
+Source --|> VersionedBKObject
+Source "repo_id" -->  Repository
+Source "text_id" -->  Message
+Source "info_id" -->  Message
+
+class Citation {
+    ref_type: int
+    ref_id: int
+    type: int
+    seq_nr: int
+    descr: str
+    range: enum
+    quality: int
+    text_enabled: boolean
+    info_enabled: boolean
+    descr_enabled: boolean
+}
+
+Citation --|> VersionedBKObject
+Citation "source_id" --> Source
+Citation "text_id" --> Message
+Citation "info_id" --> Message
+
+class Person {
+    surname_prefix_5caps: str
+    firstname_prefix_5caps: str
+    fullname: str
+    surname_prefix_10caps: str
+    firstname_prefix_10caps: str
+    prefix: str
+    postfix: str
+    firstname: str
+    surname: str
+    sortingname: str
+    title: str
+    sexe: enum
+    parent_types1: str
+    parent_types2: str
+    privacy: enum
+    groups: str
+    find_a_grave: str
+}
+
+Person --|> VersionedBKObject
+Person "parents_family_id1" --> Family
+Person "parents_family_id2" --> Family
+Person "default_family_id"--> Family
+
+class Family {
+    partner1_seq_nr: int
+    partner2_seq_nr: int
+}
+
+Family --|> VersionedBKObject
+Family "children_ids" --> "*" Person
+Family "partner1_id" --> Person
+Family "partner2_id" --> Person
+
+class Event {
+    ref_type: int
+    seq_nr: int
+    type: int
+    prepos: enum
+    date1: str
+    date2: str
+    date_type: enum
+    custom_name: str
+}
+
+Event --|> BKObject
+Event "loc_id" --> Location
+Event "ref_id" --> Person: "ref_type == 0"
+Event "ref_id" --> Family: "ref_type == 1"
+
+@enduml

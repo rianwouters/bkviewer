@@ -91,7 +91,7 @@ class Person:
 
 
 class Family:
-    def __init__(self, partners, children, address = None):
+    def __init__(self, partners, children, address=None):
         self.partners = partners
         self.children = children
         self.address = address

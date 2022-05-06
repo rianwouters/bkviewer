@@ -94,8 +94,14 @@ class FileParser(dict):
 
 
 class Parser():
-    def read(self, s, n, ref, **kwargs):
-        return self.handle(_parse(s, self.grammar), n, ref, **kwargs)
+    def __init__(self, persons, locations, addresses ,notes):
+        self.persons = persons
+        self.locations = locations
+        self.addresses = addresses
+        self.notes = notes
+
+    def read(self, s, n, ref):
+        return self.handle(_parse(s, self.grammar), n, ref)
 
 
 class Notes(FileParser):
@@ -123,7 +129,7 @@ class Notes(FileParser):
     def read(self, dir):
         messages = {r['id']: r for r in self.rows(dir)}
         for (id, m) in messages.items():
-             if m['seq_nr'] == 1:
+            if m['seq_nr'] == 1:
                 self[id] = self.note(messages, id)
         return self
 
@@ -150,7 +156,7 @@ class Locations(FileParser):
         Field('ref_id??', 8, to_int),
         Field('latitude', 15, to_str),
         Field('longitude', 15, to_str),
-        Field('other_id', 8, to_int),
+        Field('loc_data_id', 8, to_int),
         Field('next_id', 8, to_int),
         Field('prev_id', 8, to_int),
         Field('end_marker', 1, asterisk),
@@ -170,7 +176,7 @@ class Sources(FileParser):
         Field('abbreviation', 120, to_str),
         Field('author', 120, to_str),
         Field('publisher_year', 120, to_str),
-        Field('archive_id', 8, to_int),
+        Field('repo_id', 8, to_int),
         Field('??1', 9, to_str),
         Field('archive_access_number', 80, to_str),
         Field('??', 27, to_str),
@@ -259,7 +265,7 @@ class Persons(FileParser):
         Field('fullname', 140, to_str),
         Field('surname_prefix_10caps', 10, to_str),
         Field('firstname_prefix_10caps', 10, to_str),
-        Field('??', 40, to_str),
+        Field('unknown1', 40, to_str),
         Field('prefix', 40, to_str),
         Field('postfix', 40, to_str),
         Field('firstname', 40, to_str),
@@ -267,19 +273,21 @@ class Persons(FileParser):
         Field('sortingname', 40, to_str),
         Field('title', 50, to_str),
         Field('sexe', 2, to_int),
-        Field('family_id1?', 8, to_int),
-        Field('family_id2?', 8, to_int),
-        Field('??', 8, to_str),
-        Field('??', 8, to_str),
-        Field('parent_types1', 1, to_str),
-        Field('parent_types2', 1, to_str),
+        Field('parents_family_id1', 8, to_int),
+        Field('parents_family_id2', 8, to_int),
+        Field('unknown2', 8, to_str),
+        Field('unknown3', 8, to_str),
+        Field('parents1_types', 1, to_int),
+        Field('parents2_types', 1, to_int),
         Field('??', 8, to_int),
         *_modification_dates,
         Field('empty?', 8, to_str),
         Field('privacy', 1, to_int),
-        Field('unclear?', 76, to_str),
+        Field('unknown4', 76, to_str),
         Field('groups', 10, to_str),
-        Field('??2', 31, to_str),
+        Field('unknown5', 5, to_str),
+        Field('default_family_id', 1, to_str),
+        Field('unknown6', 25, to_str),
         Field('find_a_grave', 12, to_str),
         Field('i1', 8, to_int),
         Field('i2', 8, to_int),
@@ -305,7 +313,7 @@ class Families(FileParser):
         Field('partner2_id', 8, to_int),
         Field('partner2_seq_nr', 3, to_int),
         Field('unused?', 4, to_str),
-        Field('children', 608, to_ids),
+        Field('children_ids', 608, to_ids),
         *_modification_dates,
         Field('??', 107, to_str),
         Field('next_id', 8, to_int),
@@ -317,7 +325,7 @@ class Families(FileParser):
 
     def convert(self, r, persons):
         partners = [persons.get(r[p]) for p in ['partner1_id', 'partner2_id']]
-        children = [persons[id] for id in r['children']]
+        children = [persons[id] for id in r['children_ids']]
         family = Family(partners, children)
         for partner, p in zip(partners, ['partner1_seq_nr', 'partner2_seq_nr']):
             if partner:
@@ -428,7 +436,7 @@ class Facts(Parser):
         Field('unused2?', 30, to_str),
     ]
 
-    def handle(self, r, n, ref, **kwargs):
+    def handle(self, r, n, ref):
         name = r['custom_name']
         fact = Fact(
             name if name else event_type_map[r['type']], _date(r), r['descr'])
@@ -450,7 +458,7 @@ class Names(Parser):
         Field('unused2?', 157, to_str),
     ]
 
-    def handle(self, r, n, ref, **kwargs):
+    def handle(self, r, n, ref):
         name = Name(name_type_map[r['type']], r['text'], _date(r))
         ref.names[n] = name
         return name
@@ -465,9 +473,12 @@ class Note(Parser):
         Field('unused2?', 48, to_str),
     ]
 
-    def handle(self, r, n, ref, notes, **kwargs):
-        note = notes.get(r['msg_id'], ExtNote(r['path']))
-        ref.notes[n] = note
+    def handle(self, r, n, ref):
+        note = self.notes.get(r['msg_id'], ExtNote(r['path']))
+        if ref:
+            ref.notes[n] = note
+        else:
+            print(f'WARNING: note without reference "{note}"')
         return note
 
 
@@ -483,7 +494,7 @@ class Images(Parser):
         Field('unused2?', 57, to_str),
     ]
 
-    def handle(self, r, n, ref, **kwargs):
+    def handle(self, r, n, ref):
         image = Image(r['path'], r['descr'], r['dimensions'], r['print_where'])
         ref.images[n] = image
         return image
@@ -504,21 +515,25 @@ class Todos(Parser):
         Field('prio', 1, to_str),
         Field('other_flags?', 4, to_str),
         Field('loc_id', 8, to_int),
-        Field('arch_id', 8, to_int),
+        Field('repo_id', 8, to_int),
         Field('unused2?', 85, to_str),
         Field('text_id', 8, to_int),
         Field('unused3?', 48, to_str),
     ]
 
-    def handle(self, r, n, ref, locations, addresses, notes, **kwargs):
-        loc = locations.get(r['loc_id'])
-        arch = addresses.get(r['arch_id'])
-        text = notes.get(r['text_id'])
+    def handle(self, r, n, ref):
+        loc = self.locations.get(r['loc_id'])
+        repo = self.addresses.get(r['repo_id'])
+        text = self.notes.get(r['text_id'])
         type = todo_type_map.get(r['type'])
         status = todo_status_map.get(r['status'])
         todo = Todo(_date(r), type, status,
-                    r['prio'], loc, arch, r['descr'], text)
-        ref.todos[n] = todo
+                    r['prio'], loc, repo, r['descr'], text)
+        if ref:  # skip global todo's
+            ref.todos[n] = todo
+        else:
+            print(
+                f'WARNING: skipping global to do item: "{todo.descr}"')
         return todo
 
 
@@ -532,11 +547,14 @@ class Witnesses(Parser):
         Field('unused3?', 57, to_str),
     ]
 
-    def handle(self, r, n, ref, persons, **kwargs):
-        person = persons[r['person_id']]
+    def handle(self, r, n, ref):
+        if r['person_id'] == -1: # skip unused records
+            return None
+
+        person = self.persons[r['person_id']]
         if r['type'] == -1:
             print(
-                f'WARNING:no explicit witness type defined for person #{r["person_id"]}')
+                f'WARNING: no witness type defined for person #{r["person_id"]}')
             r['type'] = 0
         witness = Witness(
             person, witness_type_map[r['type']], r['extra_type'])
@@ -554,14 +572,14 @@ class Files(Parser):
         Field('unused3', 57, to_str),
     ]
 
-    def handle(self, r, n, ref, **kwargs):
+    def handle(self, r, n, ref):
         file = File(r['path'], r['descr'])
         ref.files[n] = file
         return file
 
 
 class Medias(Files):
-    def handle(self, r, n, ref, **kwargs):
+    def handle(self, r, n, ref):
         media = Media(r['path'], r['descr'])
         ref.media[n] = media
         return media
@@ -580,7 +598,7 @@ class LocationData(Parser):
         Field('unused?', 57, to_str),
     ]
 
-    def handle(self, r, n, ref, **kwargs):
+    def handle(self, r, n, ref):
         ref.farm_or_manor_name = r['farm_or_manor_name']
         ref.parish = r['parish']
         ref.postal_address = r['postal_address']
@@ -606,32 +624,31 @@ class Others(FileParser):
     ]
 
     def convert(self, o, persons, families, events, sources, citations, locations, notes, addresses):
-        ref_id = o['ref_id']
-        t = [o['ref_type'], o['type']]
-        if ref_id > 0:  # skip reuse events
-            if t in [[0, 0], [1, 0]]:
-                handler = Facts
-            elif t in [[0, 1]]:
-                handler = Names
-            elif t in [[0, 2], [1, 2], [2, 0], [5, 0], [6, 0], [7, 0], [8, 0], [9, 0]]:
-                handler = Note
-            elif t in [[0, 4], [1, 4]]:
-                handler = Images
-            elif t in [[0, 7], [1, 7]]:
-                handler = Medias
-            elif t in [[0, 8], [1, 8]]:
-                handler = Todos
-            elif t in [[3, 0], [4, 0]]:
-                handler = Witnesses
-            elif t in [[8, 4], [8, 5], [9, 4]]:
-                handler = Files
-            elif t in [[9, 9]]:
-                handler = LocationData
-            else:
-                raise Exception(f"Type combination {t} not implemented")
-            refs = [persons, families, self, events, self, events, self, self, [
+        t = (o['ref_type'], o['type'])
+
+        if t == (-1, -1): # skip REUSE lines
+            return None
+
+        refs = [persons, families, self, events, self, events, self, self, [
                 self, None, None, None, sources, citations, None, None, None, None][t[1]], locations][t[0]]
-            return handler().read(o['payload'], o['seq_nr'], refs[ref_id], persons=persons, locations=locations, addresses=addresses, notes=notes)
+        cls_map = (
+            (((0, 0), (1, 0)), Facts),
+            (((0, 1),), Names),
+            (((0, 2), (1, 2), (2, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0)), Note),
+            (((0, 4), (1, 4)), Images),
+            (((0, 7), (1, 7)), Medias),
+            (((0, 8), (1, 8)), Todos),
+            (((3, 0), (4, 0)), Witnesses),
+            (((8, 4), (8, 5), (9, 4)), Files),
+            (((9, 9),), LocationData),
+        )
+        try:
+            handler_cls = next(filter(lambda m: t in m[0], cls_map))[1]
+        except:
+            raise Exception(f"Type combination {t} not implemented")
+        handler = handler_cls(persons, locations, addresses ,notes)
+        ref = refs.get(o['ref_id'])
+        return handler.read(o['payload'], o['seq_nr'], ref)
 
 
 # Reading order is determined as follows:
@@ -660,6 +677,25 @@ def read(dir):
     g.addresses = Addresses().read(dir, g.persons, g.families, g.repositories)
     g.events = Events().read(dir, g.persons, g.families, g.locations)
     g.others = Others().read(dir, g.persons, g.families, g.events, g.sources,
-                                    g.citations, g.locations, g.notes, g.addresses)
+                             g.citations, g.locations, g.notes, g.addresses)
     g.citations.resolve(g.persons, g.families, g.events, g.others)
     return g
+
+
+class BKGenealogy(Genealogy):
+
+    def read(self, dir):
+        self.notes = Notes().read(dir)
+        self.locations = Locations().read(dir)
+        self.sources = Sources().read(dir, self.notes)
+        self.citations = Citations().read(dir, self.notes)
+        self.persons = Persons().read(dir)
+        self.families = Families().read(dir, self.persons)
+        self.repositories = {}
+        self.addresses = Addresses().read(dir, self.persons, self.families, self.repositories)
+        self.events = Events().read(dir, self.persons, self.families, self.locations)
+        self.others = Others().read(dir, self.persons, self.families, self.events, self.sources,
+                                self.citations, self.locations, self.notes, self.addresses)
+        self.citations.resolve(self.persons, self.families, self.events, self.others)
+        return self
+        
