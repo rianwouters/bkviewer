@@ -76,6 +76,7 @@ class Person:
         self.privacy = privacy
         self.address = address
         self.families = Collection("Families")
+        self.parents = []
         self.notes = Collection("Notes")
         self.events = Collection("Events and Facts")
         self.media = Collection("Media")

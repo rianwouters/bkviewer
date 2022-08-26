@@ -1,5 +1,5 @@
 
-@startuml
+@startuml BK model
 
 class BKObject {
     id: int

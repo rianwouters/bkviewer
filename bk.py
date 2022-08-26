@@ -327,9 +327,11 @@ class Families(FileParser):
         partners = [persons.get(r[p]) for p in ['partner1_id', 'partner2_id']]
         children = [persons[id] for id in r['children_ids']]
         family = Family(partners, children)
-        for partner, p in zip(partners, ['partner1_seq_nr', 'partner2_seq_nr']):
+        for n, partner in enumerate(partners, 1):
             if partner:
-                partner.families[r[p]] = family
+                partner.families[r[f'partner{n}_seq_nr']] = family
+        for child in children:
+                child.parents.append(family)
         return family
 
 

@@ -1,24 +1,37 @@
-from enums import EventType
 from bk import BKGenealogy
+from commands import ExitCommand, FamilyCommand, MissingCommand, PersonCommand, WitnessesCommand
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import WordCompleter
+import gettext
+
+gettext.translation('model', localedir='locale', languages=['nl']).install()
+
+cmd_map = {
+    'exit': ExitCommand,
+    'person': PersonCommand,
+    'family': FamilyCommand,
+    'witnesses': WitnessesCommand,
+    'missing': MissingCommand,
+}
 
 
-g = BKGenealogy().read('C:\\stamboom\\bk\\')
+session = PromptSession()
+session.genealogy = BKGenealogy().read('C:\\stamboom\\bk\\')
 
-p = g.persons[4664]
+while True:
+    try:
+        text = session.prompt('> ', completer=WordCompleter(cmd_map.keys), complete_while_typing=True)
+        tokens = text.split()
 
-for f in p.families.values():
-    print(' x '.join(map(lambda p: p.fullname, f.partners)))
-    for e in f.events.values():
-        if e.type.is_marriage():    
-            for w in e.witnesses.values():
-                print(f'      {e.type} {w}')
-    for c in f.children:
-        # print(f'  {c.fullname}')
-        for e in c.events.values():
-            if e.type.is_baptization():
-                # print(f'    {e.date} {e.type}')                
-                for w in e.witnesses.values():
-                    print(f'{e.date} {w}')
+        if len(tokens) == 0:
+            continue
+
+        cmd = cmd_map.get(tokens[0])
+
+        if cmd:
+            cmd.exec(session, *tokens[1:])
+    except:
+        pass
 
 # TODO refactor Collection dicts to arrays the models to get rid of .values()
 # TODO refactor collections into models
