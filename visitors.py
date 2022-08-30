@@ -2,6 +2,7 @@ class Visitor:
     def __init__(self, action):
         self.action = action
 
+
 class PedigreeVisitor(Visitor):
     def __init__(self, action):
         super().__init__(action)
@@ -27,24 +28,24 @@ class PersonFamilyVisitor(Visitor):
         self.families(p.families)
 
     def family(self, f):
+        self.action.family(f)
         for p in f.partners:
             self.action.person(p)
             self.events(p.events)
-        self.action.family(f)
         self.events(f.events)
         self.children(f.children)
 
     def families(self, families):
-        for f in families.values():
+        for f in families:
             self.family(f)
 
     def events(self, events):
-        for event in events.values():
+        for event in events:
             self.action.event(event)
             self.witnesses(event.witnesses)
 
     def witnesses(self, witnesses):
-        for w in witnesses.values():
+        for w in witnesses:
             self.action.witness(w)
 
     def children(self, children):

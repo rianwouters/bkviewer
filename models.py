@@ -1,6 +1,24 @@
 from enums import EventType
 
 
+class Array(list):
+
+    def __init__(self, name):
+        self.name = name
+
+    def _ensure_length(self, n):
+        l = len(self)
+        if n > l:
+            self.extend([None]*(n - l))
+
+    def __setitem__(self, n, val):
+        self._ensure_length(n + 1)
+        list.__setitem__(self, n, val)
+
+    def __str__(self) -> str:
+        lines = '\n'.join(str(l) for l in self)
+        return f'\n{self.name}:\n{lines}\n' if lines else f'\n(No {self.name})'
+
 class Collection(dict):
     def __init__(self, name):
         self.name = name
@@ -14,9 +32,9 @@ class EventBase:
     def __init__(self, type: EventType, date):
         self.type = type
         self.date = date
-        self.notes = Collection('Notes')
-        self.witnesses = Collection("Witnesses")
-        self.citations = Collection("Citations")
+        self.notes = Array('Notes')
+        self.witnesses = Array("Witnesses")
+        self.citations = Array("Citations")
 
     def __str__(self):
         return f'{self.type} {self.date}{self.notes}{self.witnesses}'
@@ -46,8 +64,8 @@ class Name:
         self.type = type
         self.text = text
         self.date = date
-        self.notes = Collection('Notes')
-        self.citations = Collection("Citations")
+        self.notes = Array('Notes')
+        self.citations = Array("Citations")
 
     def __str__(self) -> str:
         return f'{self.type}: {self.text} {self.date}'
@@ -58,7 +76,7 @@ class Witness:
         self.person = person
         self.type = type
         self.extra_type = extra_type
-        self.citations = Collection('Citations')
+        self.citations = Array('Citations')
 
     def __str__(self) -> str:
         return f'{self.person.fullname} {self.type} {self.extra_type if self.extra_type else ""}'
@@ -75,20 +93,29 @@ class Person:
         self.title = title
         self.privacy = privacy
         self.address = address
-        self.families = Collection("Families")
+        self.families = Array("Families")
         self.parents = []
-        self.notes = Collection("Notes")
-        self.events = Collection("Events and Facts")
-        self.media = Collection("Media")
-        self.images = Collection("Images")
-        self.names = Collection("Names")
-        self.todos = Collection("Todo")
-        self.citations = Collection("General citations")
-        self.name_citations = Collection("Name citations")
-        self.child_citations = Collection("Child citations")
+        self.notes = Array("Notes")
+        self.events = Array("Events and Facts")
+        self.media = Array("Media")
+        self.images = Array("Images")
+        self.names = Array("Names")
+        self.todos = Array("Todo")
+        self.citations = Array("General citations")
+        self.name_citations = Array("Name citations")
+        self.child_citations = Array("Child citations")
 
     def __str__(self) -> str:
         return f'Full name: {self.fullname}\nSexe: {self.sexe}{self.families}{self.events}{self.names}{self.notes}{self.images}{self.media}{self.citations}{self.name_citations}{self.child_citations}{self.todos}'
+
+    def set_family(self, n, f):
+        l = len(self.families)
+        if n >= l:
+            self.families.extend((None)*(n + 1 - l))
+        else:
+            if self.families[n]:
+                print("")
+        self.families[n] = f
 
 
 class Family:
@@ -96,11 +123,11 @@ class Family:
         self.partners = partners
         self.children = children
         self.address = address
-        self.notes = Collection("Notes")
-        self.events = Collection("Events")
-        self.media = Collection("Media")
-        self.images = Collection("Images")
-        self.citations = Collection("Citations")
+        self.notes = Array("Notes")
+        self.events = Array("Events")
+        self.media = Array("Media")
+        self.images = Array("Images")
+        self.citations = Array("Citations")
 
     def __str__(self) -> str:
         fn = map(lambda p: p.fullname if p else "(empty)", self.partners)
@@ -109,7 +136,7 @@ class Family:
 
 class Note:
     def __init__(self) -> None:
-        self.citations = Collection("Citations")
+        self.citations = Array("Citations")
 
 
 class ExtNote(Note):
@@ -142,8 +169,8 @@ class File:
 class Media(File):
     def __init__(self, path, descr) -> None:
         super().__init__(path, descr)
-        self.notes = Collection('Notes')
-        self.citations = Collection('Citations')
+        self.notes = Array('Notes')
+        self.citations = Array('Citations')
 
     def __str__(self) -> str:
         return f'{super().__str__()}{self.notes}'
@@ -177,7 +204,7 @@ class Source:
         self.title = title
         self.text = text
         self.note = note
-        self.files = Collection('Files')
+        self.files = Array('Files')
 
     def __str__(self) -> str:
         return self.title
@@ -188,7 +215,7 @@ class Citation:
         self.descr = descr
         self.text = text
         self.info = info
-        self.files = Collection('Files')
+        self.files = Array('Files')
 
 
 class Location:
@@ -209,8 +236,8 @@ class Location:
         self.residence_number = residence_number
         self.farm_number = farm_number
         self.property_number = property_number
-        self.notes = Collection("Notes")
-        self.files = Collection("Files")
+        self.notes = Array("Notes")
+        self.files = Array("Files")
 
     def __str__(self) -> str:
         return self.name

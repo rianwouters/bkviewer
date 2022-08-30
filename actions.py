@@ -31,7 +31,7 @@ class WitnessPrinter(Action):
         print(f'{p.fullname} #{p.id}')
 
     def event(self, e):
-        if len(e.witnesses.values()) > 0:
+        if len(e.witnesses) > 0:
             print(f'{_(e.type)} {e.date}')
 
     def witness(self, w):

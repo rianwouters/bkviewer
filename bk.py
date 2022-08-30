@@ -94,11 +94,12 @@ class FileParser(dict):
 
 
 class Parser():
-    def __init__(self, persons, locations, addresses ,notes):
+    def __init__(self, persons, locations, addresses, notes, todos):
         self.persons = persons
         self.locations = locations
         self.addresses = addresses
         self.notes = notes
+        self.todos = todos
 
     def read(self, s, n, ref):
         return self.handle(_parse(s, self.grammar), n, ref)
@@ -329,9 +330,9 @@ class Families(FileParser):
         family = Family(partners, children)
         for n, partner in enumerate(partners, 1):
             if partner:
-                partner.families[r[f'partner{n}_seq_nr']] = family
+                partner.families[r[f'partner{n}_seq_nr']-1] = family
         for child in children:
-                child.parents.append(family)
+            child.parents.append(family)
         return family
 
 
@@ -420,7 +421,7 @@ class Events(FileParser):
             event = Event(
                 name if name else event_type_map[r['type']], _date(r), r['prepos'], loc)
             ref = refs[r['ref_type']][r['ref_id']]
-            ref.events[r['seq_nr']] = event
+            ref.events[r['seq_nr']-1] = event
             return event
 
 
@@ -442,7 +443,7 @@ class Facts(Parser):
         name = r['custom_name']
         fact = Fact(
             name if name else event_type_map[r['type']], _date(r), r['descr'])
-        ref.events[n] = fact
+        ref.events[n-1] = fact
         return fact
 
 
@@ -462,7 +463,7 @@ class Names(Parser):
 
     def handle(self, r, n, ref):
         name = Name(name_type_map[r['type']], r['text'], _date(r))
-        ref.names[n] = name
+        ref.names[n-1] = name
         return name
 
 
@@ -478,7 +479,7 @@ class Note(Parser):
     def handle(self, r, n, ref):
         note = self.notes.get(r['msg_id'], ExtNote(r['path']))
         if ref:
-            ref.notes[n] = note
+            ref.notes[n-1] = note
         else:
             print(f'WARNING: note without reference "{note}"')
         return note
@@ -498,7 +499,7 @@ class Images(Parser):
 
     def handle(self, r, n, ref):
         image = Image(r['path'], r['descr'], r['dimensions'], r['print_where'])
-        ref.images[n] = image
+        ref.images[n-1] = image
         return image
 
 
@@ -531,11 +532,10 @@ class Todos(Parser):
         status = todo_status_map.get(r['status'])
         todo = Todo(_date(r), type, status,
                     r['prio'], loc, repo, r['descr'], text)
-        if ref:  # skip global todo's
-            ref.todos[n] = todo
-        else:
-            print(
-                f'WARNING: skipping global to do item: "{todo.descr}"')
+        if ref:  
+            ref.todos[n-1] = todo
+        else: # global todo's
+            self.todos[n] = todo
         return todo
 
 
@@ -543,14 +543,14 @@ class Witnesses(Parser):
     grammar = [
         Field('type', 1, to_int),
         Field('unused1?', 4, to_int),
-        Field('person_id', 8, to_int),
+        Field('person_id'   , 8, to_int),
         Field('unused2?', 196, to_str),
         Field('extra_type', 100, to_str),
         Field('unused3?', 57, to_str),
     ]
 
     def handle(self, r, n, ref):
-        if r['person_id'] == -1: # skip unused records
+        if r['person_id'] == -1:  # skip unused records
             return None
 
         person = self.persons[r['person_id']]
@@ -560,7 +560,7 @@ class Witnesses(Parser):
             r['type'] = 0
         witness = Witness(
             person, witness_type_map[r['type']], r['extra_type'])
-        ref.witnesses[n] = witness
+        ref.witnesses[n-1] = witness
         return witness
 
 
@@ -576,14 +576,14 @@ class Files(Parser):
 
     def handle(self, r, n, ref):
         file = File(r['path'], r['descr'])
-        ref.files[n] = file
+        ref.files[n-1] = file
         return file
 
 
 class Medias(Files):
     def handle(self, r, n, ref):
         media = Media(r['path'], r['descr'])
-        ref.media[n] = media
+        ref.media[n-1] = media
         return media
 
 
@@ -625,10 +625,10 @@ class Others(FileParser):
         Field('end_marker', 1, asterisk),
     ]
 
-    def convert(self, o, persons, families, events, sources, citations, locations, notes, addresses):
+    def convert(self, o, persons, families, events, sources, citations, locations, notes, addresses, todos):
         t = (o['ref_type'], o['type'])
 
-        if t == (-1, -1): # skip REUSE lines
+        if t == (-1, -1):  # skip REUSE lines
             return None
 
         refs = [persons, families, self, events, self, events, self, self, [
@@ -648,7 +648,7 @@ class Others(FileParser):
             handler_cls = next(filter(lambda m: t in m[0], cls_map))[1]
         except:
             raise Exception(f"Type combination {t} not implemented")
-        handler = handler_cls(persons, locations, addresses ,notes)
+        handler = handler_cls(persons, locations, addresses, notes, todos)
         ref = refs.get(o['ref_id'])
         return handler.read(o['payload'], o['seq_nr'], ref)
 
@@ -694,10 +694,12 @@ class BKGenealogy(Genealogy):
         self.persons = Persons().read(dir)
         self.families = Families().read(dir, self.persons)
         self.repositories = {}
-        self.addresses = Addresses().read(dir, self.persons, self.families, self.repositories)
+        self.todos = {}
+        self.addresses = Addresses().read(
+            dir, self.persons, self.families, self.repositories)
         self.events = Events().read(dir, self.persons, self.families, self.locations)
         self.others = Others().read(dir, self.persons, self.families, self.events, self.sources,
-                                self.citations, self.locations, self.notes, self.addresses)
-        self.citations.resolve(self.persons, self.families, self.events, self.others)
+                                    self.citations, self.locations, self.notes, self.addresses, self.todos)
+        self.citations.resolve(
+            self.persons, self.families, self.events, self.others)
         return self
-        
