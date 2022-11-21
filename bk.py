@@ -415,12 +415,14 @@ class Events(FileParser):
 
     def convert(self, r, persons, families, locations):
         refs = [persons, families]
+        # TODO create function to check reuse 
         if r['ref_id'] > 0:  # skip reuse events
             loc = locations.get(r['loc_id'])
             name = r['custom_name']
-            event = Event(
-                name if name else event_type_map[r['type']], _date(r), r['prepos'], loc)
+            # TODO create function to get event type
             ref = refs[r['ref_type']][r['ref_id']]
+            event = Event(
+                name if name else event_type_map[r['type']], _date(r), ref, r['prepos'], loc)
             ref.events[r['seq_nr']-1] = event
             return event
 
@@ -442,7 +444,7 @@ class Facts(Parser):
     def handle(self, r, n, ref):
         name = r['custom_name']
         fact = Fact(
-            name if name else event_type_map[r['type']], _date(r), r['descr'])
+            name if name else event_type_map[r['type']], _date(r), ref, r['descr'])
         ref.events[n-1] = fact
         return fact
 
@@ -532,9 +534,9 @@ class Todos(Parser):
         status = todo_status_map.get(r['status'])
         todo = Todo(_date(r), type, status,
                     r['prio'], loc, repo, r['descr'], text)
-        if ref:  
+        if ref:
             ref.todos[n-1] = todo
-        else: # global todo's
+        else:  # global todo's
             self.todos[n] = todo
         return todo
 
@@ -543,7 +545,7 @@ class Witnesses(Parser):
     grammar = [
         Field('type', 1, to_int),
         Field('unused1?', 4, to_int),
-        Field('person_id'   , 8, to_int),
+        Field('person_id', 8, to_int),
         Field('unused2?', 196, to_str),
         Field('extra_type', 100, to_str),
         Field('unused3?', 57, to_str),
@@ -551,6 +553,8 @@ class Witnesses(Parser):
 
     def handle(self, r, n, ref):
         if r['person_id'] == -1:  # skip unused records
+            # TODO clarify warning to specify if it refers to a person or family
+            print(f'print(WARNING: invalid person for {ref.type} event related to person/family {ref.ref.id}')
             return None
 
         person = self.persons[r['person_id']]
@@ -558,8 +562,7 @@ class Witnesses(Parser):
             print(
                 f'WARNING: no witness type defined for person #{r["person_id"]}')
             r['type'] = 0
-        witness = Witness(
-            person, witness_type_map[r['type']], r['extra_type'])
+        witness = Witness(person, witness_type_map[r['type']], r['extra_type'])
         ref.witnesses[n-1] = witness
         return witness
 

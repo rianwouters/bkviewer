@@ -21,11 +21,16 @@ class PedigreeVisitor(Visitor):
 
 
 class PersonFamilyVisitor(Visitor):
-    def __init__(self, action):
+    def __init__(self, action, depth=1):
         super().__init__(action)
+        self.depth = depth
 
     def visit(self, p):
+        if self.depth == 0:
+            return
+        self.depth -= 1
         self.families(p.families)
+        self.depth += 1
 
     def family(self, f):
         self.action.family(f)
@@ -50,5 +55,6 @@ class PersonFamilyVisitor(Visitor):
 
     def children(self, children):
         for c in children:
-            self.action.person(c)
+            self.action.child(c)
             self.events(c.events)
+            self.visit(c)

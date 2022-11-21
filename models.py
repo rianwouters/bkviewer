@@ -29,20 +29,22 @@ class Collection(dict):
 
 
 class EventBase:
-    def __init__(self, type: EventType, date):
+    def __init__(self, type: EventType, date, ref):
         self.type = type
         self.date = date
         self.notes = Array('Notes')
         self.witnesses = Array("Witnesses")
         self.citations = Array("Citations")
+        self.ref = ref
+        
 
     def __str__(self):
         return f'{self.type} {self.date}{self.notes}{self.witnesses}'
 
 
 class Event(EventBase):
-    def __init__(self, type, date, prepos, loc):
-        super().__init__(type, date)
+    def __init__(self, type, date, ref, prepos, loc):
+        super().__init__(type, date, ref)
         self.prepos = prepos
         self.loc = loc
 
@@ -51,8 +53,8 @@ class Event(EventBase):
 
 
 class Fact(EventBase):
-    def __init__(self, type, date, descr):
-        super().__init__(type, date)
+    def __init__(self, type, date, ref, descr):
+        super().__init__(type, date, ref)
         self.descr = descr
 
     def __str__(self):

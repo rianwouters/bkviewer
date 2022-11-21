@@ -1,3 +1,6 @@
+import builtins
+
+
 class Action:
     def family(self, f, *args): pass
     def person(self, p, *args): pass
@@ -28,7 +31,11 @@ class WitnessPrinter(Action):
         print(' x '.join(map(lambda p: p.fullname, f.partners)))
 
     def person(self, p):
-        print(f'{p.fullname} #{p.id}')
+        # print(f'{p.fullname} #{p.id}')
+        pass
+
+    def child(self, p):
+        print(f'Child {p.fullname} #{p.id}')
 
     def event(self, e):
         if len(e.witnesses) > 0:
