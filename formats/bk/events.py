@@ -1,45 +1,7 @@
-from enums import PrivacyType, Sexe, TodoStatus, TodoType, WitnessType, NameType, EventType
-
-privacy_type_map = [
-    PrivacyType.CLEAR,
-    PrivacyType.NAME_ONLY_DETAILS_BLANK,
-    PrivacyType.NAME_ONLY_DETAILS_PRIVATE,
-    PrivacyType.ALL_PRIVATE,
-    PrivacyType.HIDE_PERSON
-]
-
-witness_type_map = dict([
-    (0, WitnessType.WITNESS),
-    (1, WitnessType.GODPARENT),
-    (2, WitnessType.SPONSOR),
-    (3, WitnessType.LEGAL_WITNESS),
-    (4, WitnessType.INFORMANT),
-    (5, WitnessType.PERSON_OF_HONOR),
-    (9, WitnessType.OTHER),
-])
-
-name_type_map = dict([
-    (1, NameType.ALSO_KNOWN_AS),
-    (5, NameType.NICK),
-    (10, NameType.SHORT),
-    (15, NameType.ADOPTED),
-    (20, NameType.HEBREW),
-    (25, NameType.CENSUS),
-    (30, NameType.MARIIED),
-    (35, NameType.GERMAN),
-    (40, NameType.FARM),
-    (45, NameType.BIRTH),
-    (50, NameType.INDIAN),
-    (55, NameType.FORMAL),
-    (60, NameType.CURRENT),
-    (65, NameType.SOLDIER),
-    (68, NameType.FORMERLY_KNOWN_AS),
-    (70, NameType.RELIGIOUS),
-    (80, NameType.CALLED),
-    (85, NameType.INDIGENOUS),
-    (88, NameType.TOMBSTONE),
-    (95, NameType.OTHER),
-])
+from .dates.date import date
+from .field import Field, asterisk, to_int, to_str
+from .parser import FileParser
+from models import Event, EventType
 
 event_type_map = dict([
     (1, EventType.BORN),
@@ -141,21 +103,44 @@ event_type_map = dict([
     (970, EventType.MARRIAGE_REF),
 ])
 
-sexe_type_map = dict([
-    (0, Sexe.UNKNOWN),
-    (1, Sexe.MAN),
-    (2, Sexe.WOMAN),
-])
 
-todo_type_map = dict([
-    (1, TodoType.RESEARCH),
-    (2, TodoType.CORRESPONDENCE),
-    (9, TodoType.OTHER),
-])
+class Events(FileParser):
+    fname = 'BKEvent.dt7'
+    grammar = [
+        Field('id', 9, to_int),
+        Field('ref_type', 1, to_int),
+        Field('ref_id', 8, to_int),
+        # type ref-type-specific sequence number shared with 'other' events
+        Field('seq_nr', 3, to_int),
+        Field('type', 3, to_int),
+        Field('prepos', 2, to_int),
+        Field('date1', 20, to_str),
+        Field('date2', 20, to_str),
+        Field('loc_id', 8, to_int),
+        # 1 = "event started date1 and ended date2", 2 = "event between date1 and date2", 0 or empty = on date1
+        Field('date_type', 9, to_int),
+        # seems always empty
+        Field('??1', 30, to_str),
+        # for families: partner-specific event sequence number, shared with 'other' events?
+        Field('partner1_seq_nr', 3, to_int),
+        Field('partner2_seq_nr', 3, to_int),
+        # seems always empty
+        Field('??2', 6, to_str),
+        Field('custom_name', 18, to_str),
+        Field('next_id', 9, to_int),
+        Field('prev_id', 9, to_int),
+        Field('end_marker', 1, asterisk),
+    ]
 
-todo_status_map = dict([
-    (1, TodoStatus.PLAN),
-    (2, TodoStatus.STARTED),
-    (9, TodoStatus.PROGRESS),
-    (9, TodoStatus.COMPLETED),
-])
+    def convert(self, r, persons, families, locations):
+        refs = [persons, families]
+        # TODO create function to check reuse
+        if r['ref_id'] > 0:  # skip reuse events
+            loc = locations.get(r['loc_id'])
+            name = r['custom_name']
+            # TODO create function to get event type
+            ref = refs[r['ref_type']][r['ref_id']]
+            event = Event(
+                name if name else event_type_map[r['type']], date(r), ref, r['prepos'], loc)
+            ref.events[r['seq_nr']-1] = event
+            return event

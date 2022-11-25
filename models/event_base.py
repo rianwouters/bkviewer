@@ -1,50 +1,5 @@
-from enum import Enum
-
-
-class StrEnum(str, Enum):
-    __str__ = str.__str__
-
-
-class PrivacyType(StrEnum):
-    CLEAR = "No privacy settings"
-    NAME_ONLY_DETAILS_BLANK = "Show name only, details blank"
-    NAME_ONLY_DETAILS_PRIVATE = "Show name only, details 'private'"
-    ALL_PRIVATE = "Show 'private' instead of name, details private"
-    HIDE_PERSON = "Do not show that this person exists"
-
-
-class WitnessType(StrEnum):
-    WITNESS = "witness"
-    GODPARENT = "godparent"
-    SPONSOR = "sponsor"
-    LEGAL_WITNESS = "legal witness"
-    INFORMANT = "informant"
-    PERSON_OF_HONOR = "best man/maid of honor"
-    OTHER = 'other'
-
-
-class NameType(StrEnum):
-    ALSO_KNOWN_AS = 'Also known as'
-    NICK = 'Nickname'
-    SHORT = 'Short name'
-    ADOPTED = 'Adopted name'
-    HEBREW = 'Hebrew name'
-    CENSUS = 'Census'
-    MARIIED = 'Married name'
-    GERMAN = 'German name'
-    FARM = 'Farm name'
-    BIRTH = 'Birth name'
-    INDIAN = 'Indian name'
-    FORMAL = 'Formal name'
-    CURRENT = 'Current name'
-    SOLDIER = 'Soldier name'
-    FORMERLY_KNOWN_AS = 'Formerly known as'
-    RELIGIOUS = 'Religious name'
-    CALLED = 'Called'
-    INDIGENOUS = 'Indigenous name'
-    TOMBSTONE = 'Tombstone name'
-    OTHER = 'Other name'
-
+from .array import Array
+from .str_enum import StrEnum
 
 class EventType(StrEnum):
     BORN = 'Born'
@@ -157,21 +112,15 @@ class EventType(StrEnum):
             EventType.MARRIED_RELIGIOUS
         ]
 
+class EventBase:
+    def __init__(self, type: EventType, date, ref):
+        self.type = type
+        self.date = date
+        self.notes = Array('Notes')
+        self.witnesses = Array("Witnesses")
+        self.citations = Array("Citations")
+        self.ref = ref
+        
 
-class Sexe(StrEnum):
-    MAN = "Man"
-    WOMAN = "Woman"
-    UNKNOWN = "Unknown"
-
-
-class TodoType(StrEnum):
-    RESEARCH = "Research"
-    CORRESPONDENCE = "Correspondence"
-    OTHER = "Other"
-
-
-class TodoStatus(StrEnum):
-    PLAN = "Plan"
-    STARTED = "Started"
-    PROGRESS = "Progress"
-    COMPLETED = "Completed"
+    def __str__(self):
+        return f'{self.type} {self.date}{self.notes}{self.witnesses}'

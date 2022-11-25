@@ -1,13 +1,4 @@
-from commands.as_witness import AsWitness
-from commands.check_consistency import CheckConsistency
-from commands.children import Children
-from commands.exit import Exit
-from commands.experiment import Experiment
-from commands.family import Family
-from commands.load import Load
-from commands.missing import Missing
-from commands.person import Person
-from commands.witnesses import Witnesses
+from commands import AsWitness, CheckConsistency, Children, Exit, Experiment, Family, Load, Missing, Person, Witnesses
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.history import FileHistory
@@ -34,7 +25,8 @@ session = PromptSession(history=FileHistory('.myhistory'))
 session.db = 'C:\\stamboom\\bk\\'
 while True:
     try:
-        text = session.prompt('> ', completer=WordCompleter(cmd_map.keys), complete_while_typing=True)
+        text = session.prompt('> ', completer=WordCompleter(
+            cmd_map.keys), complete_while_typing=True)
         cmd_name, *args = text.split()
         cmd_map.get(cmd_name).exec(session, *args)
     except SystemExit:
