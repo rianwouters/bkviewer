@@ -1,9 +1,9 @@
 from .field import Field, asterisk, to_boolean, to_int, to_str, modification_dates
-from .parser import FileParser
+from .parsers import FileParser
 from models import Source
 
 
-class Sources(FileParser):
+class SourcesParser(FileParser):
     fname = 'BKSource.dt7'
     grammar = [
         Field('id', 8, to_int),

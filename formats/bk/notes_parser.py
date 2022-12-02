@@ -1,9 +1,9 @@
 from .field import Field, asterisk, to_int, to_str, modification_dates
-from .parser import FileParser
+from .parsers import FileParser
 from models import IntNote
 
 
-class Notes(FileParser):
+class MessageParser(FileParser):
     fname = 'BKMessg.dt7'
     grammar = [
         Field('id', 9, to_int),

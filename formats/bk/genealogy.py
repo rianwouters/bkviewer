@@ -1,12 +1,12 @@
-from .addresses import Addresses
-from .citations import Citations
-from .events import Events
-from .families import Families
-from .locations import Locations
-from .notes import Notes
-from .others import Others
-from .persons import Persons
-from .sources import Sources
+from .addresses_parser import AddressesParser
+from .citations_parser import CitationsParser
+from .events_parser import EventsParser
+from .families_parser import FamiliesParser
+from .locations_parser import LocationsParser
+from .notes_parser import MessageParser
+from .others_parser import OthersParser
+from .persons_parser import PersonsParser
+from .sources_parser import SourcesParser
 from models import AbstractGenealogy
 
 
@@ -27,18 +27,18 @@ class Genealogy(AbstractGenealogy):
     #  persons, families, locations, events, sources, citations, addresses, others
     # Citation references will he resolved as a separate step in the end.
     def read(self, dir):
-        self.notes = Notes().read(dir)
-        self.locations = Locations().read(dir)
-        self.sources = Sources().read(dir, self.notes)
-        self.citations = Citations().read(dir, self.notes)
-        self.persons = Persons().read(dir)
-        self.families = Families().read(dir, self.persons)
+        self.notes = MessageParser().read(dir)
+        self.locations = LocationsParser().read(dir)
+        self.sources = SourcesParser().read(dir, self.notes)
+        self.citations = CitationsParser().read(dir, self.notes)
+        self.persons = PersonsParser().read(dir)
+        self.families = FamiliesParser().read(dir, self.persons)
         self.repositories = {}
         self.todos = {}
-        self.addresses = Addresses().read(
+        self.addresses = AddressesParser().read(
             dir, self.persons, self.families, self.repositories)
-        self.events = Events().read(dir, self.persons, self.families, self.locations)
-        self.others = Others().read(dir, self.persons, self.families, self.events, self.sources,
+        self.events = EventsParser().read(dir, self.persons, self.families, self.locations)
+        self.others = OthersParser().read(dir, self.persons, self.families, self.events, self.sources,
                                     self.citations, self.locations, self.notes, self.addresses, self.todos)
         self.citations.resolve(
             self.persons, self.families, self.events, self.others)

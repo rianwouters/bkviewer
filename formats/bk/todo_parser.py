@@ -1,7 +1,7 @@
 
 from .dates.date import date
 from .field import Field, to_int, to_str
-from .parser import Parser
+from .parsers import Parser
 from models import Todo, TodoStatus, TodoType
 
 
@@ -19,7 +19,7 @@ todo_status_map = dict([
 ])
 
 
-class Todos(Parser):
+class TodoParser(Parser):
     grammar = [
         Field('unused1?', 2, to_int),
         Field('type', 1, to_str),
@@ -48,8 +48,7 @@ class Todos(Parser):
         status = todo_status_map.get(r['status'])
         todo = Todo(date(r), type, status,
                     r['prio'], loc, repo, r['descr'], text)
-        if ref:
-            ref.todos[n-1] = todo
-        else:  # global todo's
-            self.todos[n] = todo
+        if not ref: # store global todo's locally
+            ref = self
+        ref.todos[n-1] = todo
         return todo

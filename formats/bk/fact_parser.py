@@ -1,11 +1,11 @@
 from .dates.date import date
 from .field import Field, to_int, to_str
-from .parser import Parser
-from .events import event_type_map
+from .parsers import Parser
+from .events_parser import event_type_map
 from models import Fact
 
 
-class Facts(Parser):
+class FactParser(Parser):
     grammar = [
         Field('type', 3, to_int),
         Field('space', 1, to_str),

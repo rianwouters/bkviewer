@@ -5,6 +5,8 @@ from prompt_toolkit.history import FileHistory
 from traceback import print_exc
 import gettext
 
+from commands.check_witness_notes import CheckWitnessNotes
+
 gettext.translation('model', localedir='locale', languages=['nl']).install()
 
 cmd_map = {
@@ -18,6 +20,7 @@ cmd_map = {
     'consistency': CheckConsistency,
     'load': Load,
     'aswitness': AsWitness,
+    'checkwitnessnotes': CheckWitnessNotes,
     'exp': Experiment
 }
 

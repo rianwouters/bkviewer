@@ -1,9 +1,9 @@
 from .field import Field, asterisk, to_ids, to_int, to_str, modification_dates
-from .parser import FileParser
+from .parsers import FileParser
 from models import Family
 
 
-class Families(FileParser):
+class FamiliesParser(FileParser):
     fname = 'BKMarr.dt7'
     grammar = [
         Field('id', 8, to_int),

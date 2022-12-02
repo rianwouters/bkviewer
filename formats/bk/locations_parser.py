@@ -1,9 +1,9 @@
 from .field import Field, asterisk, to_int, to_str
-from .parser import FileParser
+from .parsers import FileParser
 from models import Location
 
 
-class Locations(FileParser):
+class LocationsParser(FileParser):
     fname = 'BKLocate.dt7'
     grammar = [
         Field('id', 8, to_int),

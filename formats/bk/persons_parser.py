@@ -1,5 +1,5 @@
 from .field import Field, asterisk, to_int, to_str, modification_dates
-from .parser import FileParser
+from .parsers import FileParser
 from models import Person, PrivacyType, Sexe
 
 
@@ -18,7 +18,7 @@ sexe_type_map = dict([
 ])
 
 
-class Persons(FileParser):
+class PersonsParser(FileParser):
     fname = 'BKPerson.dt7'
     grammar = [
         Field('id', 8, to_int),

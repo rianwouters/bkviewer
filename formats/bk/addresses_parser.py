@@ -1,9 +1,9 @@
 from .field import Field, to_int, to_str, modification_dates, asterisk
-from .parser import FileParser
+from .parsers import FileParser
 from models import Address
 
 
-class Addresses(FileParser):
+class AddressesParser(FileParser):
     fname = 'BKMail.dt7'
     grammar = [
         Field('id', 8, to_int),

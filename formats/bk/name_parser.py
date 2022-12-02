@@ -1,6 +1,6 @@
 from .dates.date import date
 from .field import Field, to_int, to_str
-from .parser import Parser
+from .parsers import Parser
 from models import Name, NameType
 
 
@@ -28,7 +28,7 @@ name_type_map = dict([
 ])
 
 
-class Names(Parser):
+class NameParser(Parser):
     grammar = [
         Field('type', 3, to_int),
         Field('space', 1, to_str),

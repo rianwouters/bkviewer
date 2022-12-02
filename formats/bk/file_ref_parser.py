@@ -1,9 +1,9 @@
 from .field import Field, to_int, to_str
-from .parser import Parser
+from .parsers import Parser
 from models.file import File
 
 
-class Files(Parser):
+class FileRefParser(Parser):
     grammar = [
         Field('space', 4, to_str),
         Field('path', 150, to_str),

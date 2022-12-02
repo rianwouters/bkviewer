@@ -1,9 +1,9 @@
 from .field import Field, to_int, to_str
-from .parser import Parser
+from .parsers import Parser
 from models import ExtNote
 
 
-class Note(Parser):
+class NoteParser(Parser):
     grammar = [
         Field('path', 206, to_str),
         Field('print_where', 3, to_int),

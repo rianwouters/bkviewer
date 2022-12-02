@@ -1,5 +1,5 @@
 from .field import Field, to_int, to_str
-from .parser import Parser
+from .parsers import Parser
 from models import Witness, WitnessType
 
 
@@ -14,7 +14,7 @@ witness_type_map = dict([
 ])
 
 
-class Witnesses(Parser):
+class WitnessParser(Parser):
     grammar = [
         Field('type', 1, to_int),
         Field('unused1?', 4, to_int),

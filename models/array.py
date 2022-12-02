@@ -4,9 +4,9 @@ class Array(list):
         self.name = name
 
     def _ensure_length(self, n):
-        l = len(self)
-        if n > l:
-            self.extend([None]*(n - l))
+        k = n - len(self)
+        if k > 0:
+            self.extend([None] * k)
 
     def __setitem__(self, n, val):
         self._ensure_length(n + 1)

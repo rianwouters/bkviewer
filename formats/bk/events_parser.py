@@ -1,6 +1,6 @@
 from .dates.date import date
 from .field import Field, asterisk, to_int, to_str
-from .parser import FileParser
+from .parsers import FileParser
 from models import Event, EventType
 
 event_type_map = dict([
@@ -104,7 +104,7 @@ event_type_map = dict([
 ])
 
 
-class Events(FileParser):
+class EventsParser(FileParser):
     fname = 'BKEvent.dt7'
     grammar = [
         Field('id', 9, to_int),

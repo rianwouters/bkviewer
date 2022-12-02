@@ -1,17 +1,8 @@
 from .field import Field, to_str
-from .files import Files
-from .parser import Parser
-from models import Media
+from .parsers import Parser
 
 
-class Medias(Files):
-    def handle(self, r, n, ref):
-        media = Media(r['path'], r['descr'])
-        ref.media[n-1] = media
-        return media
-
-
-class LocationData(Parser):
+class LocationDataParser(Parser):
     grammar = [
         Field('space', 4, to_str),
         Field('farm_or_manor_name', 40, to_str),
