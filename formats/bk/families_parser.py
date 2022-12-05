@@ -4,7 +4,6 @@ from models import Family
 
 
 class FamiliesParser(FileParser):
-    fname = 'BKMarr.dt7'
     grammar = [
         Field('id', 8, to_int),
         Field('partner1_id', 8, to_int),

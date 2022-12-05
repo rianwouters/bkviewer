@@ -4,7 +4,6 @@ from models import Location
 
 
 class LocationsParser(FileParser):
-    fname = 'BKLocate.dt7'
     grammar = [
         Field('id', 8, to_int),
         Field('name', 120, to_str),

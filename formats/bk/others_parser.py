@@ -12,7 +12,6 @@ from .witness_parser import WitnessParser
 
 
 class OthersParser(FileParser):
-    fname = 'BKOther.dt7'
     grammar = [
         Field('id', 9, to_int),
         Field('ref_type', 1, to_int),
@@ -25,11 +24,11 @@ class OthersParser(FileParser):
         Field('end_marker', 1, asterisk),
     ]
 
-    def convert(self, o, persons, families, events, sources, citations, locations, notes, addresses, todos):
-        t = (o['ref_type'], o['type'])
+    def convert(self, o, persons, families, events, sources, citations, locations, msgs, addresses, todos):
+        if o['ref_type'] == None:  # skip REUSE lines
+            return
 
-        if t == (-1, -1):  # skip REUSE lines
-            return None
+        t = (o['ref_type'], o['type'])
 
         refs = [persons, families, self, events, self, events, self, self, [
                 self, None, None, None, sources, citations, None, None, None, None][t[1]], locations][t[0]]
@@ -48,6 +47,6 @@ class OthersParser(FileParser):
             handler_cls = next(filter(lambda m: t in m[0], cls_map))[1]
         except:
             raise Exception(f"Type combination {t} not implemented")
-        handler = handler_cls(persons, locations, addresses, notes, todos)
+        handler = handler_cls(persons, locations, addresses, msgs, todos)
         ref = refs.get(o['ref_id'])
         return handler.read(o['payload'], o['seq_nr'], ref)

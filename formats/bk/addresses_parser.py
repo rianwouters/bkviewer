@@ -4,7 +4,6 @@ from models import Address
 
 
 class AddressesParser(FileParser):
-    fname = 'BKMail.dt7'
     grammar = [
         Field('id', 8, to_int),
         Field('ref_type', 1, to_int),
@@ -43,7 +42,7 @@ class AddressesParser(FileParser):
         address = Address(r['fullname'], r['line1'], r['line2'], r['line3'],
                           r['line4'], r['phone'], r['fax'], r['email'], r['web'])
         type, id = r['ref_type'], r['ref_id']
-        if type < 0:  # skip REUSE lines
+        if type == None:  # skip REUSE lines
             return
         if type < 2:
             [persons, families][type][int(id)].address = address

@@ -13,7 +13,7 @@ class NoteParser(Parser):
     ]
 
     def handle(self, r, n, ref):
-        note = self.notes.get(r['msg_id'], ExtNote(r['path']))
+        note = self.msgs.get_note(r['msg_id']) if r['msg_id'] else ExtNote(r['path'])
         if ref:
             ref.notes[n-1] = note
         else:

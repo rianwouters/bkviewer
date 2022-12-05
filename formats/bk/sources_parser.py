@@ -4,7 +4,6 @@ from models import Source
 
 
 class SourcesParser(FileParser):
-    fname = 'BKSource.dt7'
     grammar = [
         Field('id', 8, to_int),
         Field('title', 129, to_str),
@@ -36,5 +35,5 @@ class SourcesParser(FileParser):
         Field('end_marker', 1, asterisk),
     ]
 
-    def convert(self, r, notes):
-        return Source(r['title'], notes.get(r['text_id']), notes.get(r['info_id']))
+    def convert(self, r, msgs):
+        return Source(r['title'], msgs.get_note(r['text_id']), msgs.get_note(r['info_id']))

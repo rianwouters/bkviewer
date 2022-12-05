@@ -43,7 +43,7 @@ class TodoParser(Parser):
     def handle(self, r, n, ref):
         loc = self.locations.get(r['loc_id'])
         repo = self.addresses.get(r['repo_id'])
-        text = self.notes.get(r['text_id'])
+        text = self.msgs.get_note(r['text_id'])
         type = todo_type_map.get(r['type'])
         status = todo_status_map.get(r['status'])
         todo = Todo(date(r), type, status,

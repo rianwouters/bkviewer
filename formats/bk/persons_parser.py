@@ -19,7 +19,6 @@ sexe_type_map = dict([
 
 
 class PersonsParser(FileParser):
-    fname = 'BKPerson.dt7'
     grammar = [
         Field('id', 8, to_int),
         Field('surname_prefix_5caps', 5, to_str),

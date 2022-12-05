@@ -4,7 +4,6 @@ from models import Citation
 
 
 class CitationsParser(FileParser):
-    fname = 'BKSourPT.dt7'
     grammar = [
         Field('id', 9, to_int),
         Field('ref_type', 1, to_int),
@@ -31,11 +30,11 @@ class CitationsParser(FileParser):
         Field('end_marker', 1, asterisk),
     ]
 
-    def convert(self, r, notes):
-        return Citation(r['descr'], notes.get(r['text_id']), notes.get(r['info_id']))
+    def convert(self, r, msgs):
+        return Citation(r['descr'], msgs.get_note(r['text_id']), msgs.get_note(r['info_id']))
 
-    def rows(self, dir):
-        self.list = super().rows(dir)
+    def rows(self):
+        self.list = super().rows()
         return self.list
 
     def resolve(self, persons, families, events, others):

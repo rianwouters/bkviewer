@@ -105,7 +105,6 @@ event_type_map = dict([
 
 
 class EventsParser(FileParser):
-    fname = 'BKEvent.dt7'
     grammar = [
         Field('id', 9, to_int),
         Field('ref_type', 1, to_int),
