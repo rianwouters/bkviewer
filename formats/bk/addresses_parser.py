@@ -4,6 +4,7 @@ from models import Address
 
 
 class AddressesParser(FileParser):
+    fname = 'BKMail.dt7'
     grammar = [
         Field('id', 8, to_int),
         Field('ref_type', 1, to_int),

@@ -42,12 +42,10 @@ class FileParser(dict):
     # seems to work in most cases but for some reasons sometimes an extra \x0a ends up in some files
     def rows(self):
         with open(self.fname) as f:
-            lines = f.readlines()
-        n = 0
-        while n < len(lines):
-            bkline = lines[n]
-            n += 1
-            while bkline[-2] != "*":
-                bkline += '\n' + lines[n]
-                n += 1
-            yield _parse(bkline, self.grammar)
+            line = f.readline()
+            while line:
+                bkline = line
+                while bkline[-2] != "*":
+                    bkline += '\n' + f.readline()
+                line = f.readline()
+                yield _parse(bkline, self.grammar)

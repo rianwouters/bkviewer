@@ -44,9 +44,9 @@ class OthersParser(FileParser):
             (((9, 9),), LocationDataParser),
         )
         try:
-            handler_cls = next(filter(lambda m: t in m[0], cls_map))[1]
+            parser_cls = next(filter(lambda m: t in m[0], cls_map))[1]
         except:
             raise Exception(f"Type combination {t} not implemented")
-        handler = handler_cls(persons, locations, addresses, msgs, todos)
+        parser = parser_cls(persons, locations, addresses, msgs, todos)
         ref = refs.get(o['ref_id'])
-        return handler.read(o['payload'], o['seq_nr'], ref)
+        return parser.read(o['payload'], o['seq_nr'], ref)
